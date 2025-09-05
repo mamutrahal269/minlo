@@ -1,2 +1,1 @@
 # MinLo
-Minimal Loader
