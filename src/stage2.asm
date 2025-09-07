@@ -1,11 +1,11 @@
 org 0x7E00
 bits 16
-%include "../config.inc"
+%include "config.inc"
 %define DATA_LOAD_ADDRESS code_end
 %define DESTINATION_ADDRESS 0x100000
 %define BOOT_DRIVE byte [0x7C00 + 509]
 
-%macro SWITCH_PM 0
+%macro SWITCH2PM 0
     cli
     lgdt [gdt_descriptor]
     mov eax, cr0
@@ -23,26 +23,6 @@ bits 32
     mov ss, ax
     mov esp, 0x7BFF
 
-%endmacro
-
-%macro SWITCH_RM 0
-    cli
-    mov eax, cr0
-    and eax, 0xFFFFFFFE
-    mov cr0, eax
-
-    jmp 0:%%RM
-bits 16
-%%RM:
-    xor ax, ax
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-    mov sp, 0x7BFF
-
-    sti
 %endmacro
 
 code_begin:
@@ -79,7 +59,7 @@ code_begin:
     int 13h
     jc disk_error
 
-    SWITCH_PM
+    SWITCH2PM
 
     mov esi, DATA_LOAD_ADDRESS
     mov edi, DESTINATION_ADDRESS
@@ -88,7 +68,6 @@ code_begin:
 
     jmp DESTINATION_ADDRESS
 %else
-%error "невозможно загрузить >SECTORS_PER_LOAD секторов"
     mov cx, SECTORS_PER_LOAD
     mov [dap.sectors], cx
     mov ecx, TOTAL_SECTORS
@@ -99,47 +78,59 @@ loadloop:
     mov dl, BOOT_DRIVE
     int 13h
     jc disk_error
+    test ah, ah
+    jnz disk_error
 
     add dword[dap.lba_low], SECTORS_PER_LOAD
     adc dword[dap.lba_high], 0
 
-    SWITCH_PM
-
+    SWITCH2PM
+    mov eax, ecx
     mov esi, DATA_LOAD_ADDRESS
-    push ecx
     mov ecx, SECTORS_PER_LOAD * 512
     rep movsb
-    pop ecx
+    mov ecx, eax
 
-    SWITCH_RM
+    mov eax, cr0
+    btr eax, 0
+    mov cr0, eax
+    jmp 0:rm
+bits 16
+rm:
+    xor eax,eax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    mov sp, 0x7BFF
+
     sub ecx, SECTORS_PER_LOAD
     jz done
     cmp ecx, SECTORS_PER_LOAD
     jb last
-    jmp 0:loadloop
 
+    jmp loadloop
 last:
+    mov cx, TOTAL_SECTORS % SECTORS_PER_LOAD
     mov [dap.sectors], cx
     mov ah, 42h
+    mov si, dap
     mov dl, BOOT_DRIVE
     int 13h
     jc disk_error
+    test ah, ah
+    jnz disk_error
 
-    SWITCH_PM
-
+    SWITCH2PM
+    mov ecx, (TOTAL_SECTORS % SECTORS_PER_LOAD) * 512
     mov esi, DATA_LOAD_ADDRESS
-    mov edx, 512
-    mov eax, ecx
-    mul edx
-    mov ecx, eax
     rep movsb
 
-    jmp DESTINATION_ADDRESS
-
+    jmp 0x100000
 done:
-    SWITCH_PM
-
-    jmp DESTINATION_ADDRESS
+    SWITCH2PM
+    jmp 0x100000
 %endif
 bits 16
 disk_error:
@@ -190,7 +181,7 @@ dap:
     .sectors        dw 0
     .buffer_offset  dw DATA_LOAD_ADDRESS
     .buffer_segment dw 0
-    .lba_low        dd 2
+    .lba_low        dd START_SECTOR
     .lba_high       dd 0
 
 disk_err_msg db '[bootloader : stage 2] Disk read error. Please, reboot the computer', 0

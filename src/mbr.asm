@@ -31,7 +31,6 @@ main16:
     mov dx, 184Fh
     int 0x10
 
-.a20_check:
     push es
     push ds
     mov ax, 0x0000
@@ -129,6 +128,6 @@ newline db 0x0D, 0x0A, 0
 %endif
 
 times 509 - ($-$$) db 0
-boot_drive db 0
+boot_drive db 0 ; save for second stage
 dw 0xAA55
 
