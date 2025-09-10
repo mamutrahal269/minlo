@@ -31,6 +31,11 @@ main16:
     mov dx, 184Fh
     int 0x10
 
+    mov ah, 1
+    mov ch, 20h
+    xor cl, cl
+    int 10h
+
     push es
     push ds
     mov ax, 0x0000
@@ -40,23 +45,22 @@ main16:
     mov ds, dx
     mov dx, word[ds:0x7E0E]
     cmp ax, dx
-    jne .after
+    jne .a20_ok
     shl ax, 8
     mov word[es:0x7DFE], ax
     mov dx, word[ds:0x7E0E]
     cmp dx, ax
     pop ds
     pop es
-    jne .after
+    jne .a20_ok
 
-.enable_a20:
     in al, 0x92
     test al, 2
-    jnz .after
+    jnz .a20_ok
     or al, 2
     and al, 0xFE
     out 0x92, al
-.after:
+.a20_ok:
 
     jmp 0x7E00
 ;----------------------------------------------------
@@ -119,7 +123,7 @@ dap:
     .lba_high       dd 0
 ;----------------------------------------------------
 
-disk_msg db 'Disk read error! Code: 0x', 0
+disk_msg db 'Disk read error. Code: 0x', 0
 lba_err db 'Your storage device does not support LBA.', 0x0D, 0x0A, 0
 newline db 0x0D, 0x0A, 0
 
@@ -127,7 +131,7 @@ newline db 0x0D, 0x0A, 0
     %error "too many sectors"
 %endif
 
-times 509 - ($-$$) db 0
+;times 509 - ($-$$) db 0
 boot_drive db 0 ; save for second stage
 dw 0xAA55
 

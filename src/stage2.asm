@@ -35,20 +35,6 @@ code_begin:
     mov sp, 0x7BFF
     sti
 
-%if 0
-    mov al, 0x10             ; не знаю почему,но без этого dap ломается. можно поробовать убрать
-    mov [dap.size], al
-    mov eax, 0
-    mov [dap.res], al
-    mov [dap.sectors], ax
-    mov [dap.buffer_segment], ax
-    mov dword[dap.lba_high], eax
-    mov ax, DATA_LOAD_ADDRESS
-    mov [dap.buffer_offset], ax
-    mov eax, 2
-    mov [dap.lba_low], eax
-%endif
-
 
 %if TOTAL_SECTORS <= SECTORS_PER_LOAD
     mov ecx, TOTAL_SECTORS
@@ -68,6 +54,7 @@ code_begin:
 
     jmp DESTINATION_ADDRESS
 %else
+%error
     mov cx, SECTORS_PER_LOAD
     mov [dap.sectors], cx
     mov ecx, TOTAL_SECTORS
