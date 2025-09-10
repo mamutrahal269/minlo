@@ -1,6 +1,0 @@
-target remote :1234
-display/i $pc
-display $ecx
-break *0x7c00
-break *0x7e00
-set disassembly-flavor intel
