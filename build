@@ -1,3 +1,1 @@
-nasm -f bin src/mbr.asm -o mbr.bin
-nasm -f bin src/stage2.asm -o stage2.bin
-cat mbr.bin stage2.bin > drive.bin 
+cat <(nasm -f bin src/mbr.asm -o /dev/stdout) <(nasm -f bin src/stage2.asm -o /dev/stdout) > drive.bin
