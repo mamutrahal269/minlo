@@ -1,8 +1,8 @@
 org 0x7E00
 bits 16
 %include "config.inc"
-%define DATA_LOAD_ADDRESS code_end
-%define DESTINATION_ADDRESS 0x100000
+%define BUFFER code_end
+%define DEST_ADDR 0x100000
 %define BOOT_DRIVE byte [0x7C00 + 509]
 
 %macro SWITCH2PM 0
@@ -47,18 +47,18 @@ code_begin:
 
     SWITCH2PM
 
-    mov esi, DATA_LOAD_ADDRESS
-    mov edi, DESTINATION_ADDRESS
+    mov esi, BUFFER
+    mov edi, DEST_ADDR
     mov ecx, TOTAL_SECTORS * 512
     rep movsb
 
-    jmp DESTINATION_ADDRESS
+    jmp DEST_ADDR
 %else
-%error
+%error "too many sectors"
     mov cx, SECTORS_PER_LOAD
     mov [dap.sectors], cx
     mov ecx, TOTAL_SECTORS
-    mov edi, DESTINATION_ADDRESS
+    mov edi, DEST_ADDR
 loadloop:
     mov ah, 42h
     mov si, dap
@@ -69,11 +69,10 @@ loadloop:
     jnz disk_error
 
     add dword[dap.lba_low], SECTORS_PER_LOAD
-    adc dword[dap.lba_high], 0
 
     SWITCH2PM
     mov eax, ecx
-    mov esi, DATA_LOAD_ADDRESS
+    mov esi, BUFFER
     mov ecx, SECTORS_PER_LOAD * 512
     rep movsb
     mov ecx, eax
@@ -91,13 +90,16 @@ rm:
     mov gs, ax
     mov ss, ax
     mov sp, 0x7BFF
+    sti
 
     sub ecx, SECTORS_PER_LOAD
     jz done
+%if TOTAL_SECTORS % SECTORS_PER_LOAD
     cmp ecx, SECTORS_PER_LOAD
     jb last
-
-    jmp loadloop
+%endif
+    jmp 0:loadloop
+%if TOTAL_SECTORS % SECTORS_PER_LOAD
 last:
     mov cx, TOTAL_SECTORS % SECTORS_PER_LOAD
     mov [dap.sectors], cx
@@ -111,10 +113,11 @@ last:
 
     SWITCH2PM
     mov ecx, (TOTAL_SECTORS % SECTORS_PER_LOAD) * 512
-    mov esi, DATA_LOAD_ADDRESS
+    mov esi, BUFFER
     rep movsb
 
     jmp 0x100000
+%endif
 done:
     SWITCH2PM
     jmp 0x100000
