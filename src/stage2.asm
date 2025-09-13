@@ -169,7 +169,7 @@ dap:
     .size           db 0x10
     .res            db 0
     .sectors        dw 0
-    .buffer_offset  dw DATA_LOAD_ADDRESS
+    .buffer_offset  dw BUFFER
     .buffer_segment dw 0
     .lba_low        dd START_SECTOR
     .lba_high       dd 0
