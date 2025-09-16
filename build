@@ -1,1 +1,2 @@
-cat <(nasm -f bin src/mbr.asm -o /dev/stdout) <(nasm -f bin src/stage2.asm -o /dev/stdout) > minlo.bin
+set -e
+cat <(nasm -f bin -DMAGIC_BREAK src/mbr.asm -o /dev/stdout) <(nasm -f bin -DMAGIC_BREAK src/stage2.asm -o /dev/stdout) > minlo.bin

@@ -1,4 +1,4 @@
-%define LODSECTRS 1
+%define LODSECTRS 2
 bits 16
 org 0x7C00
 main16:

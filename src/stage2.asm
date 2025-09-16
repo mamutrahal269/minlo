@@ -4,9 +4,13 @@ bits 16
 %define BUFFER code_end
 %define DEST_ADDR 0x100000
 %define BOOT_DRIVE byte [0x7C00 + 509]
+%define STACKPTR 0x7DF0
 
 %macro SWITCH2PM 0
     cli
+    in al, 0x70
+    or al, 0x80
+    out 0x70, al
     lgdt [gdt_descriptor]
     mov eax, cr0
     or eax, 1
@@ -21,21 +25,69 @@ bits 32
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0x7BFF
+    mov esp, STACKPTR
 
 %endmacro
 
-code_begin:
     cld
     cli
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x7BFF
+    mov sp, STACKPTR
     sti
 
+;               0x519 .. 0x7C0B - memory map buffer
+;               word 0x500 - total records
+;               struct:
+;                       dd BaseL
+;                       dd BaseH
+;                       dd LengthL
+;                       dd LengthH
+;                       dd Type
+;                       dd ACPI
+;                       db bytes
 
+    push es
+    xor ax, ax
+    mov es, ax
+    mov [0x500], ax
+    xor ebx, ebx
+    mov ax, 0x519
+    mov di, ax
+int15hloop:
+    mov edx, 0x534D4150
+    mov eax, 0xE820
+    mov ecx, 24
+    int 15h
+
+    jc .end
+    mov byte [es:di + 24], cl
+
+    pushf
+    push eax
+
+    mov ax, di
+    add ax, 25
+    cmp ax, 0x7C0B
+
+    pop eax
+    popf
+
+    ja .end
+
+    pushf
+    add di, 25
+    popf
+    cmp eax, 0x534D4150
+    jne .end
+    inc word[0x500]
+    test ebx, ebx
+    jz .end
+    jmp int15hloop
+.end:
+    pop es
 %if TOTAL_SECTORS <= SECTORS_PER_LOAD
     mov ecx, TOTAL_SECTORS
     mov [dap.sectors], cx
@@ -54,7 +106,6 @@ code_begin:
 
     jmp DEST_ADDR
 %else
-%error "too many sectors"
     mov cx, SECTORS_PER_LOAD
     mov [dap.sectors], cx
     mov ecx, TOTAL_SECTORS
@@ -77,19 +128,24 @@ loadloop:
     rep movsb
     mov ecx, eax
 
+    jmp 0x18:.pm16 ; !!!
+bits 16
+.pm16:
     mov eax, cr0
     btr eax, 0
     mov cr0, eax
-    jmp 0:rm
-bits 16
-rm:
+    jmp 0:.rm
+.rm:
     xor eax,eax
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov sp, 0x7BFF
+    mov sp, STACKPTR
+    in al, 0x70
+    and al, ~0x80
+    out 0x70, al
     sti
 
     sub ecx, SECTORS_PER_LOAD
@@ -149,7 +205,7 @@ gdt_beg:
     dw 0xFFFF
     dw 0x0000
     db 0x00
-    db 10011010b
+    db 0x9A
     db 11001111b
     db 0x00
 
@@ -159,11 +215,20 @@ gdt_beg:
     db 10010010b
     db 11001111b
     db 0x00
+
+;           Protected Mode 16
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00
+    db 10011010b
+    db 00000000b
+    db 0x00
 gdt_end:
 
 gdt_descriptor:
     dw gdt_end - gdt_beg - 1
     dd gdt_beg
+
 bits 16
 dap:
     .size           db 0x10
@@ -175,5 +240,5 @@ dap:
     .lba_high       dd 0
 
 disk_err_msg db '[bootloader : stage 2] Disk read error. Please, reboot the computer', 0
+BUFFER:
 align 512, db 0
-code_end:
