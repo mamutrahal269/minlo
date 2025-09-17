@@ -241,4 +241,4 @@ dap:
 
 disk_err_msg db '[bootloader : stage 2] Disk read error. Please, reboot the computer', 0
 BUFFER:
-align 512, db 0x90
+times 4096 - ($-$$) nop
