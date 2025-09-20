@@ -38,56 +38,48 @@ bits 32
     mov sp, STACKPTR
     sti
 
-;               0x519 .. 0x7C0B - memory map buffer
-;               word 0x500 - total records
-;               struct:
-;                       dd BaseL
-;                       dd BaseH
-;                       dd LengthL
-;                       dd LengthH
-;                       dd Type
-;                       dd ACPI
-;                       db bytes
+mmap_ent equ 0x500
+do_e820:
+    mov di, 0x504
+	xor ebx, ebx
+	xor bp, bp
+	mov edx, 0x0534D4150
+	mov eax, 0xE820
+	mov [es:di + 20], dword 1
+	mov ecx, 24
+	int 0x15
+	jc e820failed
+	mov edx, 0x0534D4150
+	cmp eax, edx
+	jne e820failed
+	test ebx, ebx
+	je e820failed
+	jmp .jmpin
+.e820lp:
+	mov eax, 0xe820
+	mov [es:di + 20], dword 1
+	mov ecx, 24
+	int 0x15
+	jc .e820ok
+	mov edx, 0x0534D4150
+.jmpin:
+	jcxz .skipent
+	cmp cl, 20
+	jbe short .notext
+	test byte [es:di + 20], 1
+	je short .skipent
+.notext:
+	mov ecx, [es:di + 8]
+	or ecx, [es:di + 12]
+	jz .skipent
+	inc bp
+	add di, 24
+.skipent:
+	test ebx, ebx
+	jne .e820lp
+.e820ok:
+	mov [mmap_ent], bp
 
-    push es
-    xor ax, ax
-    mov es, ax
-    mov [0x500], ax
-    xor ebx, ebx
-    mov ax, 0x519
-    mov di, ax
-int15hloop:
-    mov edx, 0x534D4150
-    mov eax, 0xE820
-    mov ecx, 24
-    int 15h
-
-    jc .end
-    mov byte [es:di + 24], cl
-
-    pushf
-    push eax
-
-    mov ax, di
-    add ax, 25
-    cmp ax, 0x7C0B
-
-    pop eax
-    popf
-
-    ja .end
-
-    pushf
-    add di, 25
-    popf
-    cmp eax, 0x534D4150
-    jne .end
-    inc word[0x500]
-    test ebx, ebx
-    jz .end
-    jmp int15hloop
-.end:
-    pop es
 %if TOTAL_SECTORS <= SECTORS_PER_LOAD
     mov ecx, TOTAL_SECTORS
     mov [dap.sectors], cx
@@ -182,7 +174,13 @@ bits 16
 disk_error:
     mov esi, disk_err_msg
     xor ebx, ebx
-    mov ah, 0x40
+    mov ah, 0x4F
+    call print
+    jmp $
+e820failed:
+    mov esi, e820failed_msg
+    xor ebx, ebx
+    mov ah, 0x4F
     call print
     jmp $
 print:
@@ -216,7 +214,7 @@ gdt_beg:
     db 11001111b
     db 0x00
 
-;           Protected Mode 16
+;           code 16
     dw 0xFFFF
     dw 0x0000
     db 0x00
@@ -240,5 +238,6 @@ dap:
     .lba_high       dd 0
 
 disk_err_msg db '[bootloader : stage 2] Disk read error. Please, reboot the computer', 0
+e820failed_msg db '[bootloader : stage 2] Memory detection failed. Please, reboot the computer', 0
 BUFFER:
 times 4096 - ($-$$) nop
