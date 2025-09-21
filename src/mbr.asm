@@ -24,18 +24,6 @@ main16:
     int 13h
     jc disk_error
 
-    mov ah, 0x06
-    mov al, 0
-    mov bh, 0x07
-    mov cx, 0
-    mov dx, 184Fh
-    int 0x10
-
-    mov ah, 1
-    mov ch, 20h
-    xor cl, cl
-    int 10h
-
     push es
     push ds
     mov ax, 0x0000
@@ -132,6 +120,6 @@ newline db 0x0D, 0x0A, 0
 %endif
 
 times 509 - ($-$$) db 0
-boot_drive db 0 ; save for second stage
+boot_drive db 0
 dw 0xAA55
 

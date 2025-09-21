@@ -5,6 +5,7 @@ bits 16
 %define DEST_ADDR 0x100000
 %define BOOT_DRIVE byte [0x7C00 + 509]
 %define STACKPTR 0x7DF0
+%define MAGIC_NUM 0xABCDEF
 
 %macro SWITCH2PM 0
     cli
@@ -37,10 +38,12 @@ bits 32
     mov ss, ax
     mov sp, STACKPTR
     sti
+    mov al, BOOT_DRIVE
+    mov [params.boot_drive], al
 
-mmap_ent equ 0x500
 do_e820:
-    mov di, 0x504
+    mov di, 0x500
+    mov [params.mmap_addr], di
 	xor ebx, ebx
 	xor bp, bp
 	mov edx, 0x0534D4150
@@ -78,7 +81,7 @@ do_e820:
 	test ebx, ebx
 	jne .e820lp
 .e820ok:
-	mov [mmap_ent], bp
+	mov [params.mmap_ents], bp
 
 %if TOTAL_SECTORS <= SECTORS_PER_LOAD
     mov ecx, TOTAL_SECTORS
@@ -95,6 +98,9 @@ do_e820:
     mov edi, DEST_ADDR
     mov ecx, TOTAL_SECTORS * 512
     rep movsb
+
+    mov eax, MAGIC_NUM
+    mov ebx, params
 
     jmp DEST_ADDR
 %else
@@ -142,12 +148,9 @@ bits 16
 
     sub ecx, SECTORS_PER_LOAD
     jz done
-%if TOTAL_SECTORS % SECTORS_PER_LOAD
     cmp ecx, SECTORS_PER_LOAD
     jb last
-%endif
     jmp 0:loadloop
-%if TOTAL_SECTORS % SECTORS_PER_LOAD
 last:
     mov cx, TOTAL_SECTORS % SECTORS_PER_LOAD
     mov [dap.sectors], cx
@@ -164,10 +167,16 @@ last:
     mov esi, BUFFER
     rep movsb
 
+    mov eax, MAGIC_NUM
+    mov ebx, params
+
     jmp 0x100000
-%endif
 done:
     SWITCH2PM
+
+    mov eax, MAGIC_NUM
+    mov ebx, params
+
     jmp 0x100000
 %endif
 bits 16
@@ -227,7 +236,6 @@ gdt_descriptor:
     dw gdt_end - gdt_beg - 1
     dd gdt_beg
 
-bits 16
 dap:
     .size           db 0x10
     .res            db 0
@@ -237,7 +245,12 @@ dap:
     .lba_low        dd START_SECTOR
     .lba_high       dd 0
 
-disk_err_msg db '[bootloader : stage 2] Disk read error. Please, reboot the computer', 0
-e820failed_msg db '[bootloader : stage 2] Memory detection failed. Please, reboot the computer', 0
+params:
+    .mmap_addr dw 0
+    .mmap_ents dw 0
+    .boot_drive db 0
+
+disk_err_msg db 'Disk read error. Please, reboot the computer', 0
+e820failed_msg db 'Memory detection failed. Please, reboot the computer', 0
 BUFFER:
 times 4096 - ($-$$) nop
