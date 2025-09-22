@@ -1,6 +1,10 @@
 org 0x7E00
 bits 16
+
+%ifndef DYNAMIC_CONFIG
 %include "config.inc"
+%endif
+
 %define BUFFER code_end
 %define DEST_ADDR 0x100000
 %define BOOT_DRIVE byte [0x7C00 + 509]
