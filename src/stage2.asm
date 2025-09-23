@@ -5,7 +5,6 @@ bits 16
 %include "config.inc"
 %endif
 
-%define BUFFER code_end
 %define DEST_ADDR 0x100000
 %define BOOT_DRIVE byte [0x7C00 + 509]
 %define STACKPTR 0x7DF0
@@ -122,6 +121,7 @@ loadloop:
     jnz disk_error
 
     add dword[dap.lba_low], SECTORS_PER_LOAD
+    adc dword[dap.lba_high], 0
 
     SWITCH2PM
     mov eax, ecx
@@ -156,7 +156,7 @@ bits 16
     jb last
     jmp 0:loadloop
 last:
-    mov cx, TOTAL_SECTORS % SECTORS_PER_LOAD
+    mov ecx, TOTAL_SECTORS % SECTORS_PER_LOAD
     mov [dap.sectors], cx
     mov ah, 42h
     mov si, dap

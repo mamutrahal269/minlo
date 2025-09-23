@@ -1,3 +1,3 @@
-%define TOTAL_SECTORS 1
+%define TOTAL_SECTORS 888
 %define SECTORS_PER_LOAD 63
 %define START_SECTOR 9
