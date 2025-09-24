@@ -183,7 +183,7 @@ dap:
 
 disk_msg db 'Disk read error. Code: 0x', 0
 lba_err db 'Your storage device does not support LBA.', 0x0D, 0x0A, 0
-a20_msg db 'A20 line activation error', 0x0D, 0x0A, 0
+a20_msg db 'A20 line activation error.', 0x0D, 0x0A, 0
 newline db 0x0D, 0x0A, 0
 
 %if LODSECTRS > 127
