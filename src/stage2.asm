@@ -6,8 +6,8 @@ bits 16
 %endif
 
 %define DEST_ADDR 0x100000
-%define BOOT_DRIVE byte [0x7C00 + 509]
-%define STACKPTR 0x7DF0
+%define BOOT_DRIVE byte [0x7C00 + 445]
+%define STACKPTR 0x7C00
 %define MAGIC_NUM 0x5D0
 
 %macro SWITCH2PM 0

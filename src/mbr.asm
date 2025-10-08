@@ -190,6 +190,7 @@ newline db 0x0D, 0x0A, 0
     %error "too many sectors"
 %endif
 
-times 509 - ($-$$) db 0
+times 445 - ($-$$) db 0
 boot_drive db 0
+times 64 db 0
 dw 0xAA55
