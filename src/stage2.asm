@@ -186,28 +186,21 @@ done:
 bits 16
 disk_error:
     mov esi, disk_err_msg
-    xor ebx, ebx
-    mov ah, 0x4F
     call print
     jmp $
 e820failed:
     mov esi, e820failed_msg
-    xor ebx, ebx
-    mov ah, 0x4F
     call print
     jmp $
 print:
-    mov edi, 0xB8000
-    add edi, ebx
-.putch:
+    mov ah, 0x0E
     lodsb
     test al, al
-    jz .ok
-    mov [edi], ax
-    inc edi
-    inc edi
-    jmp .putch
-.ok:
+    jz .done
+    mov bl, 0x00
+    int 10h
+    jmp print
+.done:
     ret
 
 gdt_beg:
