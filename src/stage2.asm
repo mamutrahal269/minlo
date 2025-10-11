@@ -33,6 +33,31 @@ bits 32
 
 %endmacro
 
+%ifdef DEBUG
+	mov dx, 0x3FB
+    mov al, 0x80
+    out dx, al
+
+    mov dx, 0x3F8
+    mov al, 0x0C
+    out dx, al
+
+    mov dx, 0x3F9
+    mov al, 0x00
+    out dx, al
+
+    mov dx, 0x3FB
+    mov al, 0x03
+    out dx, al
+
+    mov dx, 0x3FC
+    mov al, 0x03
+    out dx, al
+    
+    mov si, dbg_msg_stage2
+    call dbgprint
+%endif
+
     cld
     cli
     xor ax, ax
@@ -184,6 +209,32 @@ done:
     jmp 0x100000
 %endif
 bits 16
+%ifdef DEBUG
+dbgprint:
+.loop:
+    lodsb
+    test al, al
+    jz .done
+    call dbgputc
+    jmp .loop
+.done:
+    cli
+    
+dbgputc:
+    push dx
+    push ax
+    mov dx, 0x3FD
+.wait:
+    in al, dx
+    test al, 0x20
+    jz .wait
+    pop ax
+    mov dx, 0x3F8
+    out dx, al
+    pop dx
+    ret
+%endif
+    
 disk_error:
     mov esi, disk_err_msg
     call print
@@ -249,5 +300,9 @@ params:
 
 disk_err_msg db 'Disk read error. Please, reboot the computer', 0
 e820failed_msg db 'Memory detection failed. Please, reboot the computer', 0
+
+%ifdef DEBUG
+dbg_msg_stage2 db 'DEBUG:Stage 2 is loaded', 0x0D, 0x0A, 0
+%endif
 BUFFER:
-times 4096 - ($-$$) nop
+times 4096 - ($-$$) db 0

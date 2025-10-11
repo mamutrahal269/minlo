@@ -1,5 +1,4 @@
 *.bin
-bochsrc.txt
 debug/bx_enh_dbg.ini
 debug/bochslog.txt
 debug/c.img

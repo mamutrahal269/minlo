@@ -4,12 +4,13 @@ ata0-master: type=disk, path="c.img", translation=lba, mode=flat
 boot: disk
 display_library: x, options=gui_debug
 cpu: model=atom_n270
+com1: enabled=1, mode=file, dev=/dev/stdout
 megs: 32
 megs: 128
 mouse: enabled=0
-log: bochslog.txt
+log: /dev/null
 debug: action=ignore
-info: action=report
+info: action=ignore
 error: action=report
 panic: action=ask
 magic_break: enabled=1

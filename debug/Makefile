@@ -4,7 +4,7 @@ all: $(TARGETS) minlo.bin c.img
 mbr.bin: ../src/mbr.asm
 	nasm -f bin -I.. $< -o $@
 stage2.bin: ../src/stage2.asm ../config.inc
-	nasm -f bin -I.. $< -o $@
+	nasm -f bin -I.. -DDEBUG $< -o $@
 test.bin: test.asm
 	nasm -f bin -I.. $< -o $@
 minlo.bin: $(TARGETS)
