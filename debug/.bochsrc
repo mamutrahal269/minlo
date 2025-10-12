@@ -4,7 +4,7 @@ ata0-master: type=disk, path="c.img", translation=lba, mode=flat
 boot: disk
 display_library: x, options=gui_debug
 cpu: model=atom_n270
-com1: enabled=1, mode=file, dev=/dev/stdout
+com1: enabled=1, mode=file, dev=debug.log
 megs: 32
 megs: 128
 mouse: enabled=0

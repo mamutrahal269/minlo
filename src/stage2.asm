@@ -11,6 +11,10 @@ bits 16
 %define MAGIC_NUM 0x5D0
 
 %macro SWITCH2PM 0
+%ifdef DEBUG
+	mov si, dbg_msg_pm
+	call dbgprint
+%endif
     cli
     in al, 0x70
     or al, 0x80
@@ -53,7 +57,11 @@ bits 32
     mov dx, 0x3FC
     mov al, 0x03
     out dx, al
-    
+%endif
+   
+%ifdef DEBUG
+	mov si, dbg_msg_rm
+	call dbgprint
     mov si, dbg_msg_stage2
     call dbgprint
 %endif
@@ -110,7 +118,10 @@ do_e820:
 	jne .e820lp
 .e820ok:
 	mov [params.mmap_ents], bp
-
+%ifdef DEBUG
+	mov si, dbg_msg_memdec
+	call dbgprint
+%endif
 %if TOTAL_SECTORS <= SECTORS_PER_LOAD
     mov ecx, TOTAL_SECTORS
     mov [dap.sectors], cx
@@ -155,7 +166,13 @@ loadloop:
     rep movsb
     mov ecx, eax
 
-    jmp 0x18:.pm16 ; !!!
+;	I noticed that simply clearing the PE bit isn't enough; the processor 
+;	still uses 32-bit instructions. 
+;	Therefore, I have to load the descriptor 
+;	selector with the D bit cleared.
+;	This might be a bug in my emulator.
+    jmp 0x18:.pm16
+
 bits 16
 .pm16:
     mov eax, cr0
@@ -174,7 +191,10 @@ bits 16
     and al, ~0x80
     out 0x70, al
     sti
-
+%ifdef DEBUG
+	mov si, dbg_msg_rm
+	call dbgprint
+%endif
     sub ecx, SECTORS_PER_LOAD
     jz done
     cmp ecx, SECTORS_PER_LOAD
@@ -302,7 +322,10 @@ disk_err_msg db 'Disk read error. Please, reboot the computer', 0
 e820failed_msg db 'Memory detection failed. Please, reboot the computer', 0
 
 %ifdef DEBUG
-dbg_msg_stage2 db 'DEBUG:Stage 2 is loaded', 0x0D, 0x0A, 0
+dbg_msg_stage2 db 'Stage 2 loaded', 0x0D, 0x0A, 0
+dbg_msg_memdec db 'Memory detection successful', 0x0D, 0x0A, 0
+dbg_msg_pm db 'Entering protected mode...', 0x0D, 0x0A, 0
+dbg_msg_rm db 'CPU in real mode', 0x0D, 0x0A, 0
 %endif
 BUFFER:
 times 4096 - ($-$$) db 0
