@@ -246,11 +246,12 @@ video_init:
 	mov fs, ax
 	mov ax, [multiboot.mode_type]
 	test ax, ax
-	jnz .graphicslp
+	jnz graphic_mode
 
+text_mode:
 	mov ax, [default_mode]
 	mov [best_mode], ax
-.txtlp:
+.lp:
 	mov cx, fs:[si]
 	add si, 2
 	jnc @f
@@ -268,17 +269,17 @@ video_init:
 	mov di, ModelInfoBlock
 	int 10h
 	cmp ax, 0x004F
-	jne .txtlp
+	jne .lp
 	mov ax, [ModelInfoBlock.ModeAttributes]
 	test ax, VBE_MODE_SUPPORTED
-	jz .txtlp
+	jz .lp
 	mov ax, [ModelInfoBlock.ModeAttributes]
 	test ax, VBE_MODE_VGA_UNSUPPORTED | VBE_MODE_GRAPHIC
-	jnz .txtlp
+	jnz .lp
 	mov al, [ModelInfoBlock.MemoryModel]
 	; 00h - text model
 	test al, al
-	jnz .txtlp
+	jnz .lp
 	mov eax, [multiboot.width]
 	test eax, eax
 	jnz @f
@@ -297,11 +298,10 @@ video_init:
 	neg eax
 @@:
 	cmp eax, [best_diff]
-	jae .txtlp
+	jae .lp
 	mov [best_diff], eax
 	mov [best_mode], cx
-	jmp .txtlp
-	
+	jmp .lp
 .set_bm:
 	mov cx, [best_mode]
 	mov ax, 0x4F01
@@ -320,6 +320,7 @@ video_init:
 	mov [multiboot_info.vbe_mode_info], eax
 	movzx ebx, bx
 	mov [multiboot_info.vbe_mode], ebx
+	; TODO: add VBE3 PMIBlock support
 	mov ax, 0x4F0A
 	xor bl, bl
 	int 0x10
@@ -330,7 +331,17 @@ video_init:
 	mov [multiboot_info.vbe_interface_seg], ax
 	mov [multiboot_info.vbe_interface_off], dx
 	mov [multiboot_info.vbe_interface_length], cx
-	SETFLAG MBI_VBE
+	mov [multiboot_info.framebuffer_type], 2
+	mov eax, [ModelInfoBlock.PhysBasePtr]
+	mov [multiboot_info.framebuffer_addr], eax
+	mov eax, [ModelInfoBlock.BytesPerScanLine]
+	mov [multiboot_info.framebuffer_pitch], eax
+	mov eax, [ModelInfoBlock.XResolution]
+	mov [multiboot_info.framebuffer_width], eax
+	mov eax, [ModelInfoBlock.YResolution]
+	mov [multiboot_info.framebuffer_height], eax
+	mov [multiboot_info.framebuffer_bpp], 16
+	SETFLAG MBI_VBE | MBI_FRAMEBUFFER
 	jmp video_init_end
 .graphicslp:
 	mov cx, fs:[si]
