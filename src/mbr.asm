@@ -1,4 +1,3 @@
-%define LODSECTRS 8
 bits 16
 org 0x7C00
 main16:
@@ -78,6 +77,7 @@ eeh_port:
     call a20_test
     jnc a20_failed
 a20_ok:
+	mov dl, [boot_drive]
     jmp 0x7E00
 ;----------------------------------------------------
 bits 16
@@ -174,23 +174,19 @@ stop:
 dap:
                     db 0x10
                     db 0
-    .sectors        dw LODSECTRS
+    .sectors        dw (64 * 1024) / 512
     .buffer_offset  dw 0x7E00
     .buffer_segment dw 0
     .lba_low        dd 0x1
     .lba_high       dd 0
 ;----------------------------------------------------
 
+boot_drive db 0
 disk_msg db 'Disk read error. Code: 0x', 0
 lba_err db 'Your storage device does not support LBA.', 0x0D, 0x0A, 0
 a20_msg db 'A20 line activation error.', 0x0D, 0x0A, 0
 newline db 0x0D, 0x0A, 0
 
-%if LODSECTRS > 127
-    %error "too many sectors"
-%endif
-
-times 445 - ($-$$) db 0
-boot_drive db 0
+times 446 - ($-$$) db 0
 times 64 db 0
 dw 0xAA55

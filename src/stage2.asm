@@ -6,7 +6,6 @@ bits 16
 %endif
 
 %define DEST_ADDR 0x100000
-%define BOOT_DRIVE byte [0x7C00 + 445]
 %define STACKPTR 0x7C00
 
 %define MBH_PAGE_ALIGN               (1 << 0)
@@ -149,7 +148,7 @@ init_mb_header:
     
 meminfo:
     TESTFLAG MBH_MEM_INFO
-    jz do_e820.end
+    jz do_e820
     xor eax, eax
     int 0x12
     jc memdet_failed
@@ -217,9 +216,7 @@ do_e820:
 	imul eax, bp, 24
 	mov [multiboot_info.mmap_length], eax
 	SETFLAG MBI_MMAP
-.end:
-
-video_init:
+	
 	TESTFLAG MBH_VIDEO_MODE
 	jnz video_init_end
 	mov eax, [multiboot.mode_type]
@@ -233,7 +230,7 @@ video_init:
 	mov eax, [VbeInfoBlock.VbeSignature]
 	cmp eax, 0x41534556
 	mov eax, [VbeInfoBlock.VbeVersion]
-	cmp eax, 0x0200
+	cmp eax, 0x0300
 	jb video_failed
 	mov ax, 0x4F03
 	int 10h
@@ -332,18 +329,19 @@ text_mode:
 	mov [multiboot_info.vbe_interface_off], dx
 	mov [multiboot_info.vbe_interface_length], cx
 	mov [multiboot_info.framebuffer_type], 2
-	mov eax, [ModelInfoBlock.PhysBasePtr]
+	mov eax, [ModelInfoBlock.WinASegment]
+	shl eax, 4
 	mov [multiboot_info.framebuffer_addr], eax
-	mov eax, [ModelInfoBlock.BytesPerScanLine]
-	mov [multiboot_info.framebuffer_pitch], eax
 	mov eax, [ModelInfoBlock.XResolution]
 	mov [multiboot_info.framebuffer_width], eax
 	mov eax, [ModelInfoBlock.YResolution]
 	mov [multiboot_info.framebuffer_height], eax
 	mov [multiboot_info.framebuffer_bpp], 16
-	SETFLAG MBI_VBE | MBI_FRAMEBUFFER
+	mov eax, [ModelInfoBlock.BytesPerScanLine]
+	mov [multiboot_info.framebuffer_pitch], eax
+	SETFLAG (MBI_VBE | MBI_FRAMEBUFFER)
 	jmp video_init_end
-.graphicslp:
+graphics_mode:
 	mov cx, fs:[si]
 	add si, 2
 	jnc @f
@@ -354,6 +352,9 @@ text_mode:
 @@:
 	cmp cx, 0xFFFF
 	je .set_bm
+	mov eax, [best_diff]
+	test eax, eax
+	jz set_bm
 	mov ax, 0x4F01
 	mov di, ModelInfoBlock
 	int 10h
@@ -362,14 +363,13 @@ text_mode:
 	cmp ax, 0x004F
 	jne .lp
 	mov ax, [ModelInfoBlock.ModeAttributes]
-	test ax, VBE_MODE_SUPPORTED
-	jz .lp
-	test ax, VBE_MODE_COLOR_MODE
-	jz .lp
-	test ax, VBE_MODE_GRAPHIC
-	jz .lp
-	test ax, VBE_MODE_LFB
-	jz .lp
+	mov bx, VBE_MODE_SUPPORTED  | \
+			VBE_MODE_COLOR_MODE | \
+			VBE_MODE_GRAPHIC    | \
+			VBE_MODE_LFB
+	and ax, bx
+	cmp ax, bx
+	jne .lp
 	mov eax, [multiboot.width]
 	test eax, eax
 	jnz @f
@@ -398,52 +398,52 @@ text_mode:
 	jae .lp
 	mov [best_diff], eax
 	mov [best_mode], cx
-	jz .set_bm
 	jmp .lp
 .set_bm:
+    mov cx, [best_mode]
+	test cx, cx
+	jz video_failed
 	mov ax, 0x4F01
-	mov di, ModelInfoBlock
-	int 10h
-	cmp ax, 0x004F
-	jne video_failed
-	mov ax, 0x4F02
-	mov bx, cx
+    mov di, ModelInfoBlock
+    int 10h
+    cmp ax, 0x004F
+    jne video_failed
+    mov ax, 0x4F02
+    mov bx, cx
 	or bx, (1 << 14)
-	int 10h
-	cmp ax, 0x004F
-	jne video_failed
-	mov eax, VbeInfoBlock
-	mov [multiboot_info.vbe_control_info], eax
-	mov eax, ModelInfoBlock
-	mov [multiboot_info.vbe_mode_info], eax
-	movzx ebx, bx
-	mov [multiboot_info.vbe_mode], ebx
-	; FIXME: add VBE3 PMI support
-	mov ax, 0x4F0A
-	xor bl, bl
-	int 0x10
-	cmp ax, 0x004F
-	jne video_failed
-	mov ax, es
-	mov dx, di
-	mov [multiboot_info.vbe_interface_seg], ax
-	mov [multiboot_info.vbe_interface_off], dx
-	mov [multiboot_info.vbe_interface_length], cx
-	
-	mov eax, [ModelInfoBlock.PhysBasePtr]
-	mov [multiboot_info.framebuffer_addr], eax
-	mov ax, [ModelInfoBlock.LinBytesPerScanLine]
-	movxz eax, ax
-	mov [multiboot_info.framebuffer_pitch], eax
-	mov ax, [ModelInfoBlock.YResolution]
-	movzx eax, ax
-	mov [multiboot_info.framebuffer_height], eax
-	mov ax, [ModelInfoBlock.XResolution]
-	movzx eax, ax
-	mov [multiboot_info.framebuffer_width], eax
-	mov al, [ModelInfoBlock.BitsPerPixel]
-	mov [multiboot_info.framebuffer_bpp], al
-	
+    int 10h
+    cmp ax, 0x004F
+    jne video_failed
+    mov eax, VbeInfoBlock
+    mov [multiboot_info.vbe_control_info], eax
+    mov eax, ModelInfoBlock
+    mov [multiboot_info.vbe_mode_info], eax
+    movzx ebx, bx
+    mov [multiboot_info.vbe_mode], ebx
+    ; TODO: add VBE3 PMIBlock support
+    mov ax, 0x4F0A
+    xor bl, bl
+    int 0x10
+    cmp ax, 0x004F
+    jne video_failed
+    mov ax, es
+    mov dx, di
+    mov [multiboot_info.vbe_interface_seg], ax
+    mov [multiboot_info.vbe_interface_off], dx
+    mov [multiboot_info.vbe_interface_length], cx
+    
+    mov eax, [ModelInfoBlock.PhysBasePtr]
+    mov [multiboot_info.framebuffer_addr], eax
+    mov eax, [ModelInfoBlock.XResolution]
+    mov [multiboot_info.framebuffer_width], eax
+    mov eax, [ModelInfoBlock.YResolution]
+    mov [multiboot_info.framebuffer_height], eax
+    mov eax, [ModeInfoBlock.BitsPerPixel]
+    mov [multiboot_info.framebuffer_bpp], eax 
+    mov eax, [ModelInfoBlock.BytesPerScanLine]
+    mov [multiboot_info.framebuffer_pitch], eax
+    
+    SETFLAG (MBI_VBE | MBI_FRAMEBUFFER)
 video_init_end:
 
 load_kernel:
@@ -646,7 +646,7 @@ dap:
     .buffer_segment dw 0
     .lba_low        dd START_SECTOR
     .lba_high       dd 0
-multiboot_info
+multiboot_info:
     .flags               resd 1
     .mem_lower           resd 1
     .mem_upper           resd 1
@@ -689,51 +689,63 @@ VbeInfoBlock:
     .Reserved          resb 222
     .OemData           resb 256
     
-ModelInfoBlock:
-    .ModeAttributes      resw 1
-    .WinAAttributes      resb 1
-    .WinBAttributes      resb 1
-    .WinGranularity      resw 1
-    .WinSize             resw 1
-    .WinASegment         resw 1
-    .WinBSegment         resw 1
-    .WinFuncPtr:         resd 1
-    .BytesPerScanLine    resw 1
-    .XResolution         resw 1
-    .YResolution         resw 1
-    .XCharSize           resb 1
-    .YCharSize           resb 1
-    .NumberOfPlanes      resb 1
-    .BitsPerPixel        resb 1
-    .NumberOfBanks       resb 1
-    .MemoryModel         resb 1
-    .BankSize            resb 1
-    .NumberOfImagePages  resb 1
-                         resb 1
-    .RedMaskSize         resb 1
-    .RedFieldPosition    resb 1
-    .GreenMaskSize       resb 1
-    .GreenFieldPosition  resb 1
-    .BlueMaskSize        resb 1
-    .BlueFieldPosition   resb 1
-    .RsvdMaskSize        resb 1
-    .RsvdFieldPosition   resb 1
-    .DirectColorModeInfo resb 1
-    .PhysBasePtr         resd 1
-    .OffScreenMemOffset  resd 1
-    .OffScreenMemSize    resw 1
-                         resb 206
+ModeInfoBlock:
+    .ModeAttributes        resw 1
+    .WinAAttributes        resb 1
+    .WinBAttributes        resb 1
+    .WinGranularity        resw 1
+    .WinSize               resw 1
+    .WinASegment           resw 1
+    .WinBSegment           resw 1
+    .WinFuncPtr            resd 1
+    .BytesPerScanLine      resw 1
+    .XResolution           resw 1
+    .YResolution           resw 1
+    .XCharSize             resb 1
+    .YCharSize             resb 1
+    .NumberOfPlanes        resb 1
+    .BitsPerPixel          resb 1
+    .NumberOfBanks         resb 1
+    .MemoryModel           resb 1
+    .BankSize              resb 1
+    .NumberOfImagePages    resb 1
+                           resb 1
+    .RedMaskSize           resb 1
+    .RedFieldPosition      resb 1
+    .GreenMaskSize         resb 1
+    .GreenFieldPosition    resb 1
+    .BlueMaskSize          resb 1
+    .BlueFieldPosition     resb 1
+    .RsvdMaskSize          resb 1
+    .RsvdFieldPosition     resb 1
+    .DirectColorModeInfo   resb 1
+    .PhysBasePtr           resd 1
+                           resd 1
+                           resw 1
+    .LinBytesPerScanLine   resw 1
+    .BnkNumberOfImagePages resb 1
+    .LinNumberOfImagePages resb 1
+    .LinRedMaskSize        resb 1
+    .LinRedFieldPosition   resb 1
+    .LinGreenMaskSize      resb 1
+    .LinGreenFieldPosition resb 1
+    .LinBlueMaskSize       resb 1
+    .LinBlueFieldPosition  resb 1
+    .LinRsvdMaskSize       resb 1
+    .LinRsvdFieldPosition  resb 1
+    .MaxPixelClock         resd 1
+                           resb 189
 	
-disk_err_msg db 'Disk read error. Please, reboot the computer', 0
+disk_err_msg   db 'Disk read error. Please, reboot the computer', 0
 e820failed_msg db 'Memory detection failed. Please, reboot the computer', 0
-default_mode dw 0
-best_mode dw 0
-best_diff dd 0xFFFFFFFF
+default_mode   dw 0
+best_mode      dw 0
+best_diff      dd 0xFFFFFFFF
 %ifdef DEBUG
 dbg_msg_stage2 db 'Stage 2 loaded', 0x0D, 0x0A, 0
 dbg_msg_memdec db 'Memory detection successful', 0x0D, 0x0A, 0
-dbg_msg_pm db 'Entering protected mode...', 0x0D, 0x0A, 0
-dbg_msg_rm db 'CPU in real mode', 0x0D, 0x0A, 0
+dbg_msg_pm     db 'Entering protected mode...', 0x0D, 0x0A, 0
+dbg_msg_rm     db 'CPU in real mode', 0x0D, 0x0A, 0
 %endif
 BUFFER:
 times 4096 - ($-$$) db 0
