@@ -33,9 +33,9 @@ global init_video
 
 section .text
 ; input:
-; 	ax - address of the structure with input
+; 	ax - 16 bit address of the structure with input
 ; 	parameters (the last 4 fields of the multiboot header)
-; 	bx - address of the structure with output
+; 	bx - 16 bit address of the structure with output
 ; 	parameters (the last 10 fields of the multiboot info)
 ; output:
 ; 	CF = 1 - error
@@ -61,7 +61,7 @@ init_video:
 	cmp ax, 0x004F
 	jne end.failure
 	mov eax, [VbeInfoBlock.VbeSignature]
-	cmp eax, 0x41534556
+	cmp eax, 'ASEV'
 	jne end.failure
 	mov ax, [VbeInfoBlock.VbeVersion]
 	cmp ax, 0x0300
@@ -77,7 +77,11 @@ text_mode:
 	mov ax, 0x4F03
 	int 10h
 	cmp ax, 0x004F
+	jne .00
 	mov [best_mode], bx
+	jmp .lp
+.00:
+	mov word [best_mode], 0x3
 .lp:
 	mov cx, [fs:si]
 	add si, 2
@@ -99,7 +103,6 @@ text_mode:
 	mov ax, [ModeInfoBlock.ModeAttributes]
 	test ax, VBE_MODE_SUPPORTED
 	jz .lp
-	mov ax, [ModeInfoBlock.ModeAttributes]
 	test ax, VBE_MODE_VGA_UNSUPPORTED | VBE_MODE_GRAPHICS
 	jnz .lp
 	mov al, [ModeInfoBlock.MemoryModel]
@@ -109,16 +112,21 @@ text_mode:
 	mov eax, [bp + FIELD_WIDTH]
 	test eax, eax
 	jnz .1
-	mov eax, [ModeInfoBlock.XResolution]
+	movzx eax, word [ModeInfoBlock.XResolution]
 .1:
 	mov edx, [bp + FIELD_HEIGHT]
 	test edx, edx
 	jnz .2
-	mov edx, [ModeInfoBlock.YResolution]
+	movzx edx, word [ModeInfoBlock.YResolution]
 .2:
-	imul eax, edx
-	mov edx, [ModeInfoBlock.XResolution]
-	imul edx, [ModeInfoBlock.YResolution]
+	mul edx
+	movzx edx, word [ModeInfoBlock.XResolution]
+	movzx ebx, word [ModeInfoBlock.YResolution]
+	push eax
+	mov eax, edx
+	mul ebx
+	mov edx, eax
+	pop eax
 	sub eax, edx
 	jns .3
 	neg eax
@@ -164,15 +172,15 @@ text_mode:
 	mov [bp + FIELD_VBE_INTERFACE_OFF], dx
 	mov [bp + FIELD_VBE_INTERFACE_LEN], cx
 	mov byte [bp + FIELD_FRAMEBUFFER_TYPE], 2
-	mov eax, [ModeInfoBlock.WinASegment]
+	movzx eax, word [ModeInfoBlock.WinASegment]
 	shl eax, 4
 	mov [bp + FIELD_FRAMEBUFFER_ADDR], eax
-	mov eax, [ModeInfoBlock.XResolution]
+	movzx eax, word [ModeInfoBlock.XResolution]
 	mov [bp + FIELD_FRAMEBUFFER_WIDTH], eax
-	mov eax, [ModeInfoBlock.YResolution]
+	movzx eax, word [ModeInfoBlock.YResolution]
 	mov [bp + FIELD_FRAMEBUFFER_HEIGHT], eax
 	mov byte [bp + FIELD_FRAMEBUFFER_BPP], 16
-	mov eax, [ModeInfoBlock.BytesPerScanLine]
+	movzx eax, word [ModeInfoBlock.BytesPerScanLine]
 	mov [bp + FIELD_FRAMEBUFFER_PITCH], eax
 	jmp end
 
@@ -210,28 +218,34 @@ graphics_mode:
 	mov eax, [bp + FIELD_WIDTH]
 	test eax, eax
 	jnz .2
-	mov eax, [ModeInfoBlock.XResolution]
+	movzx eax, word [ModeInfoBlock.XResolution]
 .2:
 	mov edx, [bp + FIELD_HEIGHT]
 	test edx, edx
 	jnz .3
-	mov edx, [ModeInfoBlock.YResolution]
+	movzx edx, word [ModeInfoBlock.YResolution]
 .3:
 	mov ebx, [bp + FIELD_DEPTH]
 	test ebx, ebx
 	jnz .5
-	mov ebx, [ModeInfoBlock.BitsPerPixel]
+	movzx ebx, byte [ModeInfoBlock.BitsPerPixel]
 .5:
-	imul eax, edx
-	imul eax, ebx
-	mov edx, [ModeInfoBlock.YResolution]
-	imul edx, [ModeInfoBlock.XResolution]
-	imul edx, [ModeInfoBlock.BitsPerPixel]
+	mul edx
+	mul ebx
+	movzx edx, word [ModeInfoBlock.YResolution]
+	movzx ebx, word [ModeInfoBlock.XResolution]
+	push eax
+	mov eax, edx
+	mul ebx
+	movzx ebx, byte [ModeInfoBlock.BitsPerPixel]
+	mul ebx
+	mov edx, eax
+	pop eax
 	sub eax, edx
-	js .6
+	jns .6
 	neg eax
 .6:
-	cmp [best_diff], eax
+	cmp eax, [best_diff]
 	jae .lp
 	mov [best_diff], eax
 	mov [best_mode], cx
@@ -276,14 +290,11 @@ graphics_mode:
 	mov [bp + FIELD_VBE_INTERFACE_LEN], cx
 	mov eax, [ModeInfoBlock.PhysBasePtr]
 	mov [bp + FIELD_FRAMEBUFFER_ADDR], eax
-	mov ax, [ModeInfoBlock.LinBytesPerScanLine]
-	movzx eax, ax
+	movzx eax, word [ModeInfoBlock.LinBytesPerScanLine]
 	mov [bp + FIELD_FRAMEBUFFER_PITCH], eax
-	mov ax, [ModeInfoBlock.XResolution]
-	movzx eax, ax
+	movzx eax, word [ModeInfoBlock.XResolution]
 	mov [bp + FIELD_FRAMEBUFFER_WIDTH], eax
-	mov ax, [ModeInfoBlock.YResolution]
-	movzx eax, ax
+	movzx eax, word [ModeInfoBlock.YResolution]
 	mov [bp + FIELD_FRAMEBUFFER_HEIGHT], eax
 	mov al, [ModeInfoBlock.BitsPerPixel]
 	mov [bp + FIELD_FRAMEBUFFER_BPP], al
@@ -303,6 +314,7 @@ graphics_mode:
 	mov [bp + FIELD_COLOR_INFO + 4], al
 	mov al, [ModeInfoBlock.LinBlueMaskSize]
 	mov [bp + FIELD_COLOR_INFO + 5], al
+	mov byte [bp + FIELD_FRAMEBUFFER_TYPE], 1
 	jmp end
 .nondirect:
 	mov ax, 1
@@ -320,6 +332,10 @@ graphics_mode:
 	mov si, framebuffer_palette
 	mov di, framebuffer_palette
 	push cx
+
+;	********	example		********
+; before: blue | green | red  | align | blue  | green | red    | align
+; after:  red  | green | blue | red   | green | blue  | unused | unused
 .sanitize_palette:
 	lodsb
 	mov bl, al
@@ -334,9 +350,15 @@ graphics_mode:
 	stosb
 	loop .sanitize_palette
 	pop cx
-	mov eax, framebuffer_palette
-	mov [bp + FIELD_COLOR_INFO], eax
-	mov [bp + FIELD_COLOR_INFO + 4], cx
+	mov dword [bp + FIELD_COLOR_INFO], framebuffer_palette
+	push eax
+	mov eax, ecx
+	mov ebx, 3
+	mul ebx
+	mov [bp + FIELD_COLOR_INFO + 4], ax
+	pop eax
+	mov byte [bp + FIELD_FRAMEBUFFER_TYPE], 0
+
 end:
 	popf
 	pop es
