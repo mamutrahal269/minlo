@@ -133,7 +133,9 @@ void memcpyfar(byte_t* buffer, dword_t physAddr, word_t n) {
         );
     }
 }
-
+int abs(const int n) {
+	return n < 0 ? -n : n;
+}
 void logf(const byte_t* fmt, ...) {
 	regs386 regs{};
 	byte_t buffer[256];

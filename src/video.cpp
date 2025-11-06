@@ -101,14 +101,25 @@ mode_descriptor init_video(const byte_t mode_type,
 			
 		}
 		else {
-			const word_t mask = VBE_MODE_SUPPORTED | VBE_MODE_COLOR_MODE | VBE_MODE_GRAPHICS | VBE_MODE_LFB;
+			const word_t mask = VBE_MODE_COLOR_MODE | VBE_MODE_GRAPHICS | VBE_MODE_LFB;
+			if(ModeInfoBlock.ModeAttributes & VBE_MODE_UNSUPPORTED) continue;
 			if((ModeInfoBlock.ModeAttributes & mask) != mask) continue;
 			if(ModeInfoBlock.MemoryModel > 7) continue;
 		}
-	dword_t cur_diff =
-		abs(width == 0 ? 0 : width - ModeInfoBlock.XResolution) +
-		abs(height == 0 ? 0 : height - ModeInfoBlock.YResolution) +
-		(mode_type == TEXT_MODE ? 0 : abs(depth == 0 ? 0 : depth - ModeInfoBlock.BitsPerPixel));
+		dword_t cur_diff =
+			(width  == 0 ? 0 :
+				(width  > ModeInfoBlock.XResolution ?
+					width  - ModeInfoBlock.XResolution :
+					ModeInfoBlock.XResolution - width)) +
+			(height == 0 ? 0 :
+				(height > ModeInfoBlock.YResolution ?
+					height - ModeInfoBlock.YResolution :
+					ModeInfoBlock.YResolution - height)) +
+			(mode_type == TEXT_MODE ? 0 :
+				(depth == 0 ? 0 :
+					(depth > ModeInfoBlock.BitsPerPixel ?
+						depth - ModeInfoBlock.BitsPerPixel :
+						ModeInfoBlock.BitsPerPixel - depth)));
 
 		if( cur_diff < best_diff) {
 			best_diff = cur_diff;
@@ -120,10 +131,7 @@ mode_descriptor init_video(const byte_t mode_type,
 	iregs.ax = 0x4F01;
 	int386(0x10, iregs, oregs);
 	if(oregs.ax != VBE_SUCCESS) return {};
-	if(best_mode != -1) {
-		if(set_video(best_mode)) return {};
-	}
-	else return {};
+	if(best_mode == -1 || set_video(mode_type == TEXT_MODE ? best_mode : best_mode | (1 << 14)) return {};
 	
 	mode_descriptor desc{};
 	desc.vbe_control_info = &VbeInfoBlock;
@@ -143,5 +151,29 @@ mode_descriptor init_video(const byte_t mode_type,
 	desc.framebuffer_width = ModeInfoBlock.XResolution;
 	desc.framebuffer_height = ModeInfoBlock.YResolution;
 	desc.framebuffer_bpp = mode_type == TEXT_MODE ? 16 : ModeInfoBlock.BitsPerPixel;
-	
+	if(mode_type == GRAPHICS_MODE) {
+		if(ModeInfoBlock.MemoryModel == 0x6 || ModeInfoBlock.MemoryModel == 0x7) {
+			desc.framebuffer_type = 1;
+			desc.framebuffer_red_field_position = ModeInfoBlock.RedFieldPosition;
+			desc.framebuffer_red_mask_size = ModeInfoBlock.RedMaskSize;
+			desc.framebuffer_green_field_position = ModeInfoBlock.GreenFieldPosition;
+			desc.framebuffer_green_mask_size = ModeInfoBlock.GreenMaskSize;
+			desc.framebuffer_blue_field_position = ModeInfoBlock.BlueFieldPosition;
+			desc.framebuffer_blue_mask_size = ModeInfoBlock.BlueMaskSize;
+			
+	}
+	else {
+		desc.framebuffer_type = 0;
+		const auto colors = 2 << ModeInfoBlock.BitsPerPixel;
+		byte_t palette[colors * 4];
+		iregs.ax = 0x4F09;
+		iregs.cx = colors;
+		iregs.bl = 1;
+		iregs.dx = 0;
+		iregs.di reinterpret_cast<word_t>(palette);
+		int386(0x10, iregs, oregs);
+		if(oregs.ax == VBE_SUCCESS) {
+			
+		}
+	}
 }
