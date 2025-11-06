@@ -9,15 +9,7 @@ using dword_t = unsigned int;
 #define EFLAGS_TF 0x0100  
 #define EFLAGS_IF 0x0200  
 #define EFLAGS_DF 0x0400  
-#define EFLAGS_OF 0x0800  
-#define EFLAGS_IOPL 0x3000  
-#define EFLAGS_NT 0x4000  
-#define EFLAGS_RF 0x10000  
-#define EFLAGS_VM 0x20000  
-#define EFLAGS_AC 0x40000  
-#define EFLAGS_VIF 0x80000  
-#define EFLAGS_VIP 0x100000  
-#define EFLAGS_ID 0x200000
+#define EFLAGS_OF 0x0800
 struct regs386 {
 	union {
 		dword_t eax;
@@ -54,8 +46,15 @@ struct regs386 {
 	dword_t eflags;
 	word_t ds, es, fs, gs;
 };
-
 void int386(const byte_t intr, const regs386& iregs, regs386& oregs);
+byte_t* strncpy(byte_t *restrict dst, const byte_t *restrict src, word_t n);
+byte_t strncmp(const byte_t *s1, const byte_t *s2, word_t n);
+template <typename T>
+inline T abs(const T num) {
+	return num < 0 ? -num : num;
+}
+word_t esseg();
+void memcpyfar(byte_t* buffer, dword_t physAddr, word_t n);
 dword_t snprintf(byte_t *buf, dword_t size, const byte_t *fmt, ...);
 void logf(const byte_t* fmt, ...);
 #ifdef DEBUG

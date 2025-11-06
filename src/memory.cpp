@@ -22,21 +22,21 @@ byte_t memlu(dword_t& meml, dword_t& memu) {
 	else memu = base + add;
 	return 0;
 }
-word_t e820map(e820_ent* ents, word_t max_ents = 0xFFFF) {
-	regs386 regs{};
-	word_t i = 0;
-	do {
-		regs.eax = 0xE820;
-		regs.edx = 0x534D4150;
-		regs.ecx = 24;
-		regs.es = esseg();
-		regs.di = reinterpret_cast<word_t>(&ents[i]);
-		int386(0x15, regs, regs);
-		if (regs.eax != 0x534D4150 ||
-			regs.eflags & EFLAGS_CF) return i;
-		if((regs.cl > 20 && ents[i].ACPI & 1) || 
-			!ents[i].length) continue;
-		++i;
-	} while(i < max_ents && regs.ebx);
-	return i;
+byte_t e820call(e820_ent& ent, dword_t& n) {
+    regs386 regs{};
+    regs.ebx = n;
+    regs.eax = 0xE820;
+    regs.edx = 0x534D4150;
+    regs.ecx = 24;
+    regs.es = esseg();
+    regs.di = reinterpret_cast<word_t>(&ent);
+    int386(0x15, regs, regs);
+    if (regs.eax != 0x534D4150 || regs.eflags & EFLAGS_CF) 
+        return 2;
+    n = regs.ebx;
+    if ((regs.ecx > 20 && (ent.ACPI & 1) == 0) || 
+        !ent.length) 
+        return 1;
+    
+    return 0;
 }

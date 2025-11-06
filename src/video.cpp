@@ -1,6 +1,8 @@
 #include <minlib.cpp>
 #include <video.hpp>
-asm(".code16gcc\n");
+#define VBE_SUCCESS 0x004F
+#define TEXT_MODE 1
+#define GRAPHICS_MODE 0
 
 namespace {
 	struct [[gnu::packed]] {
@@ -64,45 +66,82 @@ namespace {
     	byte_t  LinRsvdFieldPosition;
     	dword_t MaxPixelClock;
 	    byte_t  Reserved4[189];
-	} ModeInfoBlock[2];
+	} ModeInfoBlock;
 }
 mode_descriptor init_video(const byte_t mode_type, 
 						   const dword_t width,
 						   const dword_t height,
 						   const dword_t depth) {
-	word_t best_mode;
-	word_t best_diff = 0xFFFF;
-	mode_descriptor desc;
+	if(mode_type > GRAPHICS_MODE) return {};
+	strncpy(VbeInfoBlock.VbeSignature, "VBE2", 4);
 	regs386 iregs{}, oregs{};
-	iregs.es = esseg();
-	VbeInfoBlock.VbeSignature[0] = 'V';
-	VbeInfoBlock.VbeSignature[1] = 'B';
-	VbeInfoBlock.VbeSignature[2] = 'E';
-	VbeInfoBlock.VbeSignature[3] = '2';
 	iregs.ax = 0x4F00;
+	iregs.es = esseg();
 	iregs.di = reinterpret_cast<word_t>(&VbeInfoBlock);
 	int386(0x10, iregs, oregs);
-	if(oregs.ax != 0x004F) return {};
-	if(!(VbeInfoBlock.VbeSignature[0] == 'V' &&
-		 VbeInfoBlock.VbeSignature[1] == 'E' &&
-		 VbeInfoBlock.VbeSignature[2] == 'S' &&
-		 VbeInfoBlock.VbeSignature[3] == 'A')) return {};
+	if(oregs.ax != VBE_SUCCESS) return {};
+	if(strncmp(VbeInfoBlock.VbeSignature, "VESA", 4)) return {};
 	if(VbeInfoBlock.VbeVersion < 0x0300) return {};
-	dword_t videoModePhys = (VbeInfoBlock.VideoModePtr >> 16) * 16 +
-							(VbeInfoBlock.VideoModePtr & 0xFF);
-	memcpyfar(static_cast<byte_t*>(&iregs.cx),
-			  videoModePhys,
-			  sizeof(iregs.cx));
+	dword_t mode_phys = (VbeInfoBlock.VideoModePtr >> 16) * 16 + (VbeInfoBlock.VideoModePtr & 0xFFFF);
+	memcpyfar(static_cast<byte_t*>(&iregs.cx), mode_phys, sizeof(iregs.cx));
 	if(iregs.cx == 0xFFFF) return {};
-	regs.di = reinterpret_cast<word_t>(&ModeInfoBlock[0]);
+	word_t best_mode = -1;
+	dword_t best_diff = -1;
+	for(; iregs.cx != 0xFFFF; mode_phys += 2) {
+		if(best_diff == 0) break;
+		memcpyfar(static_cast<byte_t*>(&iregs.cx), mode_phys, sizeof(iregs.cx));
+		iregs.ax = 0x4F01;
+		iregs.di = reinterpret_cast<word_t>(&ModeInfoBlock);
+		int386(0x10, iregs, oregs);
+		if(oregs.ax != VBE_SUCCESS) continue;
+		if(!(ModeInfoBlock.ModeAttributes & VBE_MODE_SUPPORTED)) continue;
+		if(mode_type == TEXT_MODE) {
+			if(ModeInfoBlock.MemoryModel != 0) continue;
+			if(ModeInfoBlock.ModeAttributes & (VBE_MODE_VGA_UNSUPPORTED | VBE_MODE_GRAPHICS)) continue;
+			
+		}
+		else {
+			const word_t mask = VBE_MODE_SUPPORTED | VBE_MODE_COLOR_MODE | VBE_MODE_GRAPHICS | VBE_MODE_LFB;
+			if((ModeInfoBlock.ModeAttributes & mask) != mask) continue;
+			if(ModeInfoBlock.MemoryModel > 7) continue;
+		}
+	dword_t cur_diff =
+		abs(width == 0 ? 0 : width - ModeInfoBlock.XResolution) +
+		abs(height == 0 ? 0 : height - ModeInfoBlock.YResolution) +
+		(mode_type == TEXT_MODE ? 0 : abs(depth == 0 ? 0 : depth - ModeInfoBlock.BitsPerPixel));
+
+		if( cur_diff < best_diff) {
+			best_diff = cur_diff;
+			best_mode = iregs.cx;
+		}
+	}
+	iregs.cx = best_mode;
+	iregs.di = reinterpret_cast<word_t>(&ModeInfoBlock);
 	iregs.ax = 0x4F01;
 	int386(0x10, iregs, oregs);
-	if(oregs.ax != 0x004F) return {};
-	memcpyfar(static_cast<byte_t*>(&iregs.cx),
-			  videoModePhys,
-			  sizeof(iregs.cx));
-	
-	while(regs.cx != 0xFFFF) {
-		
+	if(oregs.ax != VBE_SUCCESS) return {};
+	if(best_mode != -1) {
+		if(set_video(best_mode)) return {};
 	}
+	else return {};
+	
+	mode_descriptor desc{};
+	desc.vbe_control_info = &VbeInfoBlock;
+	desc.vbe_mode_info = &ModeInfoBlock;
+	desc.vbe_mode = best_mode;
+	iregs.ax = 0x4F0A;
+	iregs.bl = 0;
+	int386(0x10, iregs, oregs);
+	if(oregs.ax == VBE_SUCCESS) {
+		desc.vbe_interface_seg = oregs.es;
+		desc.vbe_interface_off = oregs.di;
+		desc.vbe_interface_len = oregs.cx;
+	}
+	else desc.vbe_interface_seg = desc.vbe_interface_off = desc.vbe_interface_len = 0;
+	desc.framebuffer_addr = mode_type == TEXT_MODE ? ModeInfoBlock.WinASegment * 16 : ModeInfoBlock.PhysBasePtr;
+	desc.framebuffer_pitch = mode_type == TEXT_MODE ? ModeInfoBlock.BytesPerScanLine : ModeInfoBlock.LinBytesPerScanLine;
+	desc.framebuffer_width = ModeInfoBlock.XResolution;
+	desc.framebuffer_height = ModeInfoBlock.YResolution;
+	desc.framebuffer_bpp = mode_type == TEXT_MODE ? 16 : ModeInfoBlock.BitsPerPixel;
+	
 }

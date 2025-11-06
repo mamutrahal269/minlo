@@ -1,4 +1,4 @@
-#include <minlib.cpp>
+#include <minlib.hpp>
 struct [[gnu::packed]] e820_ent {
 	qword_t base;
 	qword_t length;
@@ -6,4 +6,4 @@ struct [[gnu::packed]] e820_ent {
 	dword_t ACPI;
 }
 byte_t memlu(dword_t& meml, dword_t& memu);
-word_t e820map(e820_ent* ents, word_t max_ents = 0xFFFF);
+byte_t e820call(e820_ent& ent, dword_t& n);

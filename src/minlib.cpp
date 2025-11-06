@@ -88,9 +88,26 @@ void int386(const byte_t intr, const regs386& iregs, regs386& oregs) {
  		: "memory"
  	);
 }
-template <typename T>
-T abs(const T num) {
-	return num < 0 ? -num : num;
+byte_t* strncpy(byte_t *restrict dst, const byte_t *restrict src, word_t n) {
+    byte_t* ret = dst;
+    while (n) {
+        if ((*dst = *src) != '\0')
+            src++;
+        dst++;
+        n--;
+    }
+    return ret;
+}
+byte_t strncmp(const byte_t *s1, const byte_t *s2, word_t n) {
+    while (n--) {
+        byte_t c1 = *s1++;
+        byte_t c2 = *s2++;
+        if (c1 != c2)
+            return c1 - c2;
+        if (c1 == '\0')
+            return 0;
+    }
+    return 0;
 }
 word_t esseg() {
 	word_t es;
@@ -103,16 +120,20 @@ word_t esseg() {
 	return es;
 }
 void memcpyfar(byte_t* buffer, dword_t physAddr, word_t n) {
-	for(word_t i = 0; i < n; ++i, ++physAddr) {
-		asm volatile (
-			"mov es, %[seg]\n"
-			"mov %[val], [es:si]\n"
-			: [val] "=r" (buffer[i])
-			: [seg] "r" (physAddr >> 4), "S" (physAddr & 0xF)
-			: "es", "memory"
-		);
-	}
+    for(word_t i = 0; i < n; ++i, ++physAddr) {
+        asm volatile (
+            "push es\n"
+            "mov es, %[seg]\n"
+            "mov al, byte [es:si]\n"
+            "mov %[dst], al\n"
+            "pop es\n"
+            : [dst] "=m" (buffer[i])
+            : [seg] "r" ((word_t)physAddr >> 4), "S" ((word_t)physAddr & 0xF)
+            : "memory", "al"
+        );
+    }
 }
+
 void logf(const byte_t* fmt, ...) {
 	regs386 regs{};
 	byte_t buffer[256];
