@@ -1,5 +1,6 @@
 #include <minlib.hpp>
 #include <disk.hpp>
+using namespace minlib;
 
 byte_t readdisk(dword_t lba,
 				dword_t sectors,
@@ -18,7 +19,7 @@ byte_t readdisk(dword_t lba,
 		end_lba >= chs_limit) return 0xFF;
 
 	regs386 regs{};
-	word_t bufptr = reinterpret_cast<word_t>(buffer);
+	word_t bufptr = reinterpret_cast<dword_t>(buffer);
 
 	while (sectors) {
 		word_t cyl = lba / (max.head * max.sector);
@@ -32,7 +33,7 @@ byte_t readdisk(dword_t lba,
 		regs.dh = (lba / max.sector) % max.head;
 		regs.dl = drive_n;
 		int386(0x13, regs, regs);
-		if (regs.eflags & EFLAGS_CF)
+		if (regs.eflags & eflags.CF)
 			return regs.ah;
 
 		sectors -= regs.al;
@@ -51,7 +52,7 @@ disk_descriptor diskdesc(const byte_t disk_n) {
 	regs.ah = 8;
 	regs.dl = disk_n;
 	int386(0x13, regs, regs);
-	if(regs.eflags & EFLAGS_CF) return {};
+	if(regs.eflags & eflags.CF) return {};
 
 	disk.size = sizeof(disk_descriptor);
 	disk.number = disk_n;

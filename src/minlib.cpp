@@ -1,7 +1,7 @@
 #include <minlib.hpp>
-#include <cstdarg>
+using minlib::regs386;
 
-void int386(const byte_t intr, const regs386& iregs, regs386& oregs) {
+void minlib::int386(const byte_t intr, const regs386& iregs, regs386& oregs) {
 	asm volatile (
  		"pushad\n"
  		"push ds\n"
@@ -88,28 +88,38 @@ void int386(const byte_t intr, const regs386& iregs, regs386& oregs) {
  		: "memory"
  	);
 }
-byte_t* strncpy(byte_t *restrict dst, const byte_t *restrict src, word_t n) {
-    byte_t* ret = dst;
-    while (n) {
-        if ((*dst = *src) != '\0')
-            src++;
-        dst++;
-        n--;
-    }
-    return ret;
-}
-byte_t strncmp(const byte_t *s1, const byte_t *s2, word_t n) {
+void* minlib::memcpy(void* dest, const void* src, word_t n) {
+    byte_t* d = (byte_t*)dest;
+    const byte_t* s = (const byte_t*)src;
     while (n--) {
-        byte_t c1 = *s1++;
-        byte_t c2 = *s2++;
-        if (c1 != c2)
-            return c1 - c2;
-        if (c1 == '\0')
-            return 0;
+        *d++ = *s++;
     }
-    return 0;
+    return dest;
 }
-word_t esseg() {
+void* minlib::memcpy(void* dest, dword_t srcptr, word_t n) {
+	byte_t *d = (byte_t*)dest;
+    for(; n; --n, ++d, ++srcptr) {
+        asm volatile (
+			"push ds\n"
+			"mov ds, ax\n"
+			"movsb"
+			"pop ds\n"
+			:
+			: "a" (srcptr >> 4), "S" (srcptr & 0xF), "D" (d)
+			: "memory", "S", "D"
+        );
+    }
+    return dest;
+}
+byte_t minlib::memcmp(const void* ptr1, const void* ptr2, word_t n) {
+	const byte_t* p1 = (byte_t*) ptr1;
+	const byte_t* p2 = (byte_t*) ptr2;
+	while(n--) 
+		if(p1[n] != p2[n]) 
+			return 1;
+	return 0;
+}
+word_t minlib::esseg() {
 	word_t es;
 	asm (
 		"mov %[seg], es\n"
@@ -119,29 +129,13 @@ word_t esseg() {
 	);
 	return es;
 }
-void memcpyfar(byte_t* buffer, dword_t physAddr, word_t n) {
-    for(word_t i = 0; i < n; ++i, ++physAddr) {
-        asm volatile (
-            "push es\n"
-            "mov es, %[seg]\n"
-            "mov al, byte [es:si]\n"
-            "mov %[dst], al\n"
-            "pop es\n"
-            : [dst] "=m" (buffer[i])
-            : [seg] "r" ((word_t)physAddr >> 4), "S" ((word_t)physAddr & 0xF)
-            : "memory", "al"
-        );
-    }
-}
-int abs(const int n) {
-	return n < 0 ? -n : n;
-}
-void logf(const byte_t* fmt, ...) {
+dword_t printf(const output_type o, const char* fmt, ...) 
+void minlib::logf(const byte_t* fmt, ...) {
 	regs386 regs{};
 	byte_t buffer[256];
 	va_list args;
 	va_start(args, fmt);
-	snprintf(buffer, 256, fmt, args);
+	minlib::snprintf(buffer, 256, fmt, args);
 	va_end(args);
 	for(byte_t i = 0; buffer[i]; ++i) {
 		regs.ah = 0x0E;
@@ -151,7 +145,7 @@ void logf(const byte_t* fmt, ...) {
 	}
 }
 #ifdef DEBUG
-void outb(word_t port, byte_t val) {
+void minlib::outb(word_t port, byte_t val) {
 	asm volatile (
 		"out dx, al\n"
 		: 
@@ -159,7 +153,7 @@ void outb(word_t port, byte_t val) {
 	);
 }
 
-byte_t inb(word_t port) {
+byte_t minlib::inb(word_t port) {
 	byte_t ret;
 	asm volatile (
 		"in al, dx\n"
@@ -168,12 +162,12 @@ byte_t inb(word_t port) {
 	);
 	return ret;
 }
-void comlogf(const byte_t* fmt, ...) {
+void minlib::comlogf(const byte_t* fmt, ...) {
 	regs386 regs{};
 	byte_t buffer[256];
 	va_list args;
 	va_start(args, fmt);
-	snprintf(buffer, 256, fmt, args);
+	minlib::snprintf(buffer, 256, fmt, args);
 	va_end(args);
 	for(int i = 0; buffer[i]; ++i) {
 		while(!(inb(0x3F8 + 5) & 0x20));

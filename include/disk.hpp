@@ -1,6 +1,7 @@
+#pragma once
 #include <minlib.hpp>
 
-struct disk_descriptor {
+struct [[gnu::packed]] disk_descriptor {
 	dword_t size;
 	byte_t number;
 	byte_t mode;

@@ -1,3 +1,4 @@
+#pragma once
 #include <minlib.hpp>
 struct [[gnu::packed]] e820_ent {
 	qword_t base;

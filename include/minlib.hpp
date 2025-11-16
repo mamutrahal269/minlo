@@ -1,64 +1,75 @@
-using byte_t = unsigned char;
-using word_t = unsigned short;
-using dword_t = unsigned int;
-#define EFLAGS_CF 0x0001  
-#define EFLAGS_PF 0x0004  
-#define EFLAGS_AF 0x0010  
-#define EFLAGS_ZF 0x0040  
-#define EFLAGS_SF 0x0080  
-#define EFLAGS_TF 0x0100  
-#define EFLAGS_IF 0x0200  
-#define EFLAGS_DF 0x0400  
-#define EFLAGS_OF 0x0800
+#pragma once
+using i8 = signed char;
+using u8 = unsigned char;
+using i16 = signed short;
+using u16 = unsigned short;
+using i32 = signed int;
+using u32 = unsigned int;
+using i64 = signed long long;
+using u64 = unsigned long long;
+using size_t = u32;
+
+using va_list = __builtin_va_list;
+#define va_start(ap, last)   __builtin_va_start(ap, last)
+#define va_arg(ap, type)     __builtin_va_arg(ap, type)
+#define va_end(ap)           __builtin_va_end(ap)
+
+enum outt : i8 {
+	none = 0, tty, com
+};
+enum eflags : u32 {
+	CF = 0x0001,  
+	PF = 0x0004, 
+	AF = 0x0010,  
+	ZF = 0x0040,  
+	SF = 0x0080,  
+	TF = 0x0100,  
+	IF = 0x0200, 
+	DF = 0x0400,  
+	OF = 0x0800
+};
 struct regs386 {
 	union {
-		dword_t eax;
-		word_t ax;
-		struct { byte_t al, ah; };
+		u32 eax;
+		u16 ax;
+		struct { u8 al, ah; };
 	};
 	union {
-		dword_t ebx;
-		word_t bx;
-		struct { byte_t bl, bh; };
+		u32 ebx;
+		u16 bx;
+		struct { u8 bl, bh; };
 	};
 	union {
-		dword_t ecx;
-		word_t cx;
-		struct { byte_t cl, ch; };
+		u32 ecx;
+		u16 cx;
+		struct { u8 cl, ch; };
 	};
 	union {
-		dword_t edx;
-		word_t dx;
-		struct { byte_t dl, dh; };
+		u32 edx;
+		u16 dx;
+		struct { u8 dl, dh; };
 	};
 	union {
-		dword_t esi;
-		word_t si;
+		u32 esi;
+		u16 si;
 	};
 	union {
-		dword_t edi;
-		word_t di;
+		u32 edi;
+		u16 di;
 	};
 	union {
-		dword_t ebp;
-		word_t bp;
+		u32 ebp;
+		u16 bp;
 	};
-	dword_t eflags;
-	word_t ds, es, fs, gs;
+	u32 eflags;
+	u16 ds, es, fs, gs;
 };
-void int386(const byte_t intr, const regs386& iregs, regs386& oregs);
-byte_t* strncpy(byte_t *restrict dst, const byte_t *restrict src, word_t n);
-byte_t strncmp(const byte_t *s1, const byte_t *s2, word_t n);
-template <typename T>
-inline T abs(const T num) {
-	return num < 0 ? -num : num;
-}
-word_t esseg();
-void memcpyfar(byte_t* buffer, dword_t physAddr, word_t n);
-dword_t snprintf(byte_t *buf, dword_t size, const byte_t *fmt, ...);
-void logf(const byte_t* fmt, ...);
-#ifdef DEBUG
-void outb(word_t port, byte_t val);
-byte_t inb(word_t port);
-void comlogf(const byte_t* fmt, ...);
-#endif
+void int386(const u8 intr, const regs386& iregs, regs386& oregs);
+void* memcpy(void* dest, const void* src, size_t n);
+void* memcpyfar(void* dst, u32 srcptr, size_t n);
+u8 memcmp(const void* ptr1, const void* ptr2, size_t n);
+u16 esseg();
+int printf(const outt o, const char* fmt, ...);
+void outb(u16 port, u8 val);
+u8 inb(u16 port);
+
