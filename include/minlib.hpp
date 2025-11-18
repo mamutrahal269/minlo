@@ -30,46 +30,32 @@ enum eflags : u32 {
 };
 struct regs386 {
 	union {
-		u32 eax;
-		u16 ax;
+		u32 eax; u16 ax;
 		struct { u8 al, ah; };
 	};
 	union {
-		u32 ebx;
-		u16 bx;
+		u32 ebx; u16 bx;
 		struct { u8 bl, bh; };
 	};
 	union {
-		u32 ecx;
-		u16 cx;
+		u32 ecx; u16 cx;
 		struct { u8 cl, ch; };
 	};
 	union {
-		u32 edx;
-		u16 dx;
+		u32 edx; u16 dx;
 		struct { u8 dl, dh; };
 	};
-	union {
-		u32 esi;
-		u16 si;
-	};
-	union {
-		u32 edi;
-		u16 di;
-	};
-	union {
-		u32 ebp;
-		u16 bp;
-	};
+	union { u32 esi; u16 si; };
+	union { u32 edi; u16 di; };
+	union { u32 ebp; u16 bp; };
 	u32 eflags;
 	u16 ds, es, fs, gs;
 };
 void int386(const u8 intr, const regs386& iregs, regs386& oregs);
 void* memcpy(void* dest, const void* src, size_t n);
-void* memcpyfar(void* dst, u32 srcptr, size_t n);
+void* memcpy(void* dst,  u32 srcptr, size_t n);
 u8 memcmp(const void* ptr1, const void* ptr2, size_t n);
 u16 esseg();
 int printf(const outt o, const char* fmt, ...);
 void outb(u16 port, u8 val);
 u8 inb(u16 port);
-

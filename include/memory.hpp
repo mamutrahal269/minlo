@@ -1,10 +1,10 @@
 #pragma once
 #include <minlib.hpp>
 struct [[gnu::packed]] e820_ent {
-	qword_t base;
-	qword_t length;
-	dword_t type;
-	dword_t ACPI;
-}
-byte_t memlu(dword_t& meml, dword_t& memu);
-byte_t e820call(e820_ent& ent, dword_t& n);
+	u64 base;
+	u64 length;
+	u32 type;
+	u32 ACPI;
+};
+u8 memlu(u32& meml, u32& memu);
+u8 e820call(e820_ent& ent, u32& n);

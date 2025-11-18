@@ -1,28 +1,23 @@
 #include <minlib.hpp>
 #include <disk.hpp>
-using namespace minlib;
 
-byte_t readdisk(dword_t lba,
-				dword_t sectors,
-				const chs& max,
-				const byte_t drive_n,
-				void* buffer) {
-	dword_t chs_limit;
+u8 readdisk(u32 lba, u32 sectors, const chs& max, const u8 drive_n, void* buffer) {
+	u32 chs_limit;
 	if (__builtin_mul_overflow(max.cylinder, max.head, &chs_limit))
 		return 0xFF;
 
 	if (__builtin_mul_overflow(chs_limit, max.sector, &chs_limit))
 		return 0xFF;
 
-	dword_t end_lba;
+	u32 end_lba;
 	if (__builtin_add_overflow(lba, sectors, &end_lba) ||
 		end_lba >= chs_limit) return 0xFF;
 
 	regs386 regs{};
-	word_t bufptr = reinterpret_cast<dword_t>(buffer);
+	u16 bufptr = reinterpret_cast<u32>(buffer);
 
 	while (sectors) {
-		word_t cyl = lba / (max.head * max.sector);
+		u16 cyl = lba / (max.head * max.sector);
 
 		regs.ah = 2;
 		regs.al = sectors < 127 ? sectors : 127;
@@ -33,7 +28,7 @@ byte_t readdisk(dword_t lba,
 		regs.dh = (lba / max.sector) % max.head;
 		regs.dl = drive_n;
 		int386(0x13, regs, regs);
-		if (regs.eflags & eflags.CF)
+		if (regs.eflags & eflags::CF)
 			return regs.ah;
 
 		sectors -= regs.al;
@@ -46,24 +41,23 @@ byte_t readdisk(dword_t lba,
 	}
 	return 0;
 }
-disk_descriptor diskdesc(const byte_t disk_n) {
-	disk_descriptor disk{};
+disk_descriptor::disk_descriptor(const u8 disk_n) {
 	regs386 regs{};
 	regs.ah = 8;
 	regs.dl = disk_n;
 	int386(0x13, regs, regs);
-	if(regs.eflags & eflags.CF) return {};
-
-	disk.size = sizeof(disk_descriptor);
-	disk.number = disk_n;
-	disk.cylinders = (((regs.cl & 0xC0) << 2) | regs.ch) + 1;
-	disk.heads = regs.dh + 1;
-	disk.sectors = regs.cl & ~0xC0;
-
+	if(regs.eflags & eflags::CF) {
+		size = number = mode  = max.cylinder = max.head = max.sector = port[0] = 0;
+		return;
+	}
+	size = sizeof(disk_descriptor);
+	number = disk_n;
+	max.cylinder = (((regs.cl & 0xC0) << 2) | regs.ch) + 1;
+	max.head = regs.dh + 1;
+	max.sector = regs.cl & ~0xC0;
 	regs.ah = 0x41;
 	regs.dl = disk_n;
 	regs.bx = 0x55AA;
 	int386(0x13, regs, regs);
-	disk.mode = (regs.bx == 0xAA55) ? 1 : 0;
-	return disk;
+	mode = regs.bx == 0xAA55;
 }

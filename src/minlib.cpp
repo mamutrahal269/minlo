@@ -1,7 +1,6 @@
 #include <minlib.hpp>
-using minlib::regs386;
 
-void minlib::int386(const byte_t intr, const regs386& iregs, regs386& oregs) {
+void int386(const u8 intr, const regs386& iregs, regs386& oregs) {
 	asm volatile (
  		"pushad\n"
  		"push ds\n"
@@ -88,16 +87,16 @@ void minlib::int386(const byte_t intr, const regs386& iregs, regs386& oregs) {
  		: "memory"
  	);
 }
-void* minlib::memcpy(void* dest, const void* src, word_t n) {
-    byte_t* d = (byte_t*)dest;
-    const byte_t* s = (const byte_t*)src;
+void* memcpy(void* dest, const void* src, size_t n) {
+    u8* d = (u8*)dest;
+    const u8* s = (const u8*)src;
     while (n--) {
         *d++ = *s++;
     }
     return dest;
 }
-void* minlib::memcpy(void* dest, dword_t srcptr, word_t n) {
-	byte_t *d = (byte_t*)dest;
+void* memcpy(void* dst, u32 srcptr, size_t n); {
+	u8 *d = (u8*)dest;
     for(; n; --n, ++d, ++srcptr) {
         asm volatile (
 			"push ds\n"
@@ -111,16 +110,16 @@ void* minlib::memcpy(void* dest, dword_t srcptr, word_t n) {
     }
     return dest;
 }
-byte_t minlib::memcmp(const void* ptr1, const void* ptr2, word_t n) {
-	const byte_t* p1 = (byte_t*) ptr1;
-	const byte_t* p2 = (byte_t*) ptr2;
+u8 memcmp(const void* ptr1, const void* ptr2, size_t n) {
+	const u8* p1 = (u8*) ptr1;
+	const u8* p2 = (u8*) ptr2;
 	while(n--) 
 		if(p1[n] != p2[n]) 
 			return 1;
 	return 0;
 }
-word_t minlib::esseg() {
-	word_t es;
+u16 esseg() {
+	u16 es;
 	asm (
 		"mov %[seg], es\n"
 		: [seg] "=r" (es)
@@ -129,23 +128,7 @@ word_t minlib::esseg() {
 	);
 	return es;
 }
-dword_t printf(const output_type o, const char* fmt, ...) 
-void minlib::logf(const byte_t* fmt, ...) {
-	regs386 regs{};
-	byte_t buffer[256];
-	va_list args;
-	va_start(args, fmt);
-	minlib::snprintf(buffer, 256, fmt, args);
-	va_end(args);
-	for(byte_t i = 0; buffer[i]; ++i) {
-		regs.ah = 0x0E;
-		regs.al = buffer[i];
-		regs.bx = 0;
-		int386(0x10, regs, regs);
-	}
-}
-#ifdef DEBUG
-void minlib::outb(word_t port, byte_t val) {
+void outb(u16 port, u8 val) {
 	asm volatile (
 		"out dx, al\n"
 		: 
@@ -153,8 +136,8 @@ void minlib::outb(word_t port, byte_t val) {
 	);
 }
 
-byte_t minlib::inb(word_t port) {
-	byte_t ret;
+u8 inb(u16 port) {
+	u8 ret;
 	asm volatile (
 		"in al, dx\n"
 		: "=a"(ret) 
@@ -162,16 +145,3 @@ byte_t minlib::inb(word_t port) {
 	);
 	return ret;
 }
-void minlib::comlogf(const byte_t* fmt, ...) {
-	regs386 regs{};
-	byte_t buffer[256];
-	va_list args;
-	va_start(args, fmt);
-	minlib::snprintf(buffer, 256, fmt, args);
-	va_end(args);
-	for(int i = 0; buffer[i]; ++i) {
-		while(!(inb(0x3F8 + 5) & 0x20));
-		outb(0x3F8, buffer[i]);
-	}
-}
-#endif

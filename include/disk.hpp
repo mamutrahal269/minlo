@@ -1,25 +1,18 @@
 #pragma once
 #include <minlib.hpp>
-
+struct [[gnu::packed]] chs {
+	u16 cylinder;
+	u8 head;
+	u8 sector;
+};
 struct [[gnu::packed]] disk_descriptor {
-	dword_t size;
-	byte_t number;
-	byte_t mode;
-	word_t cylinders;
-	byte_t heads;
-	byte_t sectors;
-	word_t port[16];
-	word_t endport;
-};
-struct chs {
-	word_t cylinder;
-	byte_t head;
-	byte_t sector;
+	u32 size;
+	u8 number;
+	u8 mode;
+	chs max;
+	u16 port[16];
+	u16 endport;
+	disk_descriptor (const u8 disk_n);
 };
 
-byte_t readdisk(dword_t lba,
-                dword_t sectors,
-                const chs& max,
-                const byte_t drive_n,
-                void* buffer);
-disk_descriptor diskdesc(const byte_t disk_n);
+u8 readdisk(u32 lba, u32 sectors, const chs& max, const u8 drive_n, void* buffer);

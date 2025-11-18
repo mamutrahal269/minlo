@@ -20,12 +20,12 @@ namespace {
 	constexpr auto NL_ARGMAX = 9U;
 	constexpr auto INT_MAX   = 2147483647;
 	constexpr auto ULONG_MAX = 4294967295;
-	constexpr auto ALT_FORM  = (1U<<'#'-' ');
-	constexpr auto ZERO_PAD  = (1U<<'0'-' ');
-	constexpr auto LEFT_ADJ  = (1U<<'-'-' ');
-	constexpr auto PAD_POS   = (1U<<' '-' ');
-	constexpr auto MARK_POS  = (1U<<'+'-' ');
-	constexpr auto GROUPED   = (1U<<'\''-' ');
+	constexpr auto ALT_FORM  = (1U<<('#'-' '));
+	constexpr auto ZERO_PAD  = (1U<<('0'-' '));
+	constexpr auto LEFT_ADJ  = (1U<<('-'-' '));
+	constexpr auto PAD_POS   = (1U<<(' '-' '));
+	constexpr auto MARK_POS  = (1U<<('+'-' '));
+	constexpr auto GROUPED   = (1U<<('\''-' '));
 	constexpr auto FLAGMASK  = (ALT_FORM|ZERO_PAD|LEFT_ADJ|PAD_POS|MARK_POS|GROUPED);
 	const unsigned char states[8][58] = {
 	  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, UINT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, INT, INT, 0, 0, 0, HPRE, INT, JPRE, 0, LPRE, 0, PTR, UINT, UIPTR, 0, 0, PTR, ZTPRE, UINT, 0, 0, UINT, 0, ZTPRE,  },
@@ -69,9 +69,9 @@ namespace {
 		return i;
 	}
 	bool isdigit(const char c) { return (c >= '0' && c <= '9'); }
-	int getint(char *&s) {
+	int getint(char* &s) {
 		int i;
-		for (i=0; isdigit(*s); ++(s)) {
+		for (i=0; isdigit(*s); ++s) {
 			if (i > INT_MAX/10U || *s-'0' > INT_MAX-10*i) i = -1;
 			else i = 10*i + (*s-'0');
 		}
@@ -123,7 +123,7 @@ namespace {
 		for (y=x;           y; y/=10) *--s = '0' + y%10;
 		return s;
 	}
-	int printf_core(const outt f, const char *fmt, va_list ap, union arg *nl_arg, int *nl_type) {
+	int printf_core(const outt f, const char *fmt, va_list &ap, union arg *nl_arg, int *nl_type) {
 		char *a, *z, *s=const_cast<char*>(fmt);
 		unsigned l10n=0, fl;
 		int w, p, xp;
@@ -309,16 +309,19 @@ namespace {
 	}
 }
 int printf(const outt f, const char *fmt, ...) {
-	va_list ap;
+	va_list ap, ap2;
 	va_start(ap, fmt);
+	va_copy(ap2, ap);
 	int nl_type[NL_ARGMAX+1] = {0};
 	union arg nl_arg[NL_ARGMAX+1];
 	int ret;
-	if ((ret = printf_core(none, fmt, ap, nl_arg, nl_type)) < 0) {
+	if ((ret = printf_core(none, fmt, ap2, nl_arg, nl_type)) < 0) {
 		va_end(ap);
+		va_end(ap2);
 		return ret;
 	}
 	ret = printf_core(f, fmt, ap, nl_arg, nl_type);
 	va_end(ap);
+	va_end(ap2);
 	return ret;
 }

@@ -80,7 +80,7 @@ namespace {
 	    byte_t  Reserved4[189];
 	} ModeInfoBlock;
 }
-void* gfxcontrol() {
+void* VBEcontrol() {
 	static byte_t initz = 0;
 	if(initz) return &VbeInfoBlock;
 	memcpy(VbeInfoBlock.VbeSignature, "VBE2", 4);
@@ -93,7 +93,7 @@ void* gfxcontrol() {
 	initz = 1;
 	return &VbeInfoBlock;
 }
-byte_t gfxsetup(const word_t mode) {
+byte_t VBEmode_setup(const word_t mode) {
 	regs386 regs{};
 	regs.ax = 0x4F02;
 	regs.bx = mode;
