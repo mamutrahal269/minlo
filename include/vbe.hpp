@@ -25,6 +25,6 @@ struct [[gnu::packed]] video_mode {
 	};
 };
 void* VBEcontroller();
-u16 VBEmode_current();
+u16 VBEstate(const u8 op, u8* state_buff, const size_t bufsiz);
 u8 VBEmode_setup(const u16 mode);
 video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 height, const u32 depth);
