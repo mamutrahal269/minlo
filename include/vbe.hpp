@@ -1,26 +1,30 @@
 #include <minlib.hpp>
-struct [[gnu::packed]] gfx_mode {
+enum : u8 {
+	SAVE_STATE, RESTORE_STATE
+};
+enum class mode_type {
+	graphics = 0, text = 1
+};
+struct [[gnu::packed]] video_mode {
 	void* vbe_mode_info;
-	word_t vbe_mode;
-	word_t vbe_interface_seg, vbe_interface_off, vbe_interface_len;
-	qword_t framebuffer_addr;
-	dword_t framebuffer_pitch, framebuffer_width, framebuffer_height;
-	byte__t framebuffer_bpp, framebuffer_type;
+	u16 vbe_mode;
+	u16 vbe_interface_seg, vbe_interface_off, vbe_interface_len;
+	u64 framebuffer_addr;
+	u32 framebuffer_pitch, framebuffer_width, framebuffer_height;
+	u8 framebuffer_bpp, framebuffer_type;
 	union {
 		struct {
-			dword_t framebuffer_palette_addr;
-			word_t framebuffer_palette_num_colors;
+			u32 framebuffer_palette_addr;
+			u32 framebuffer_palette_num_colors;
 		};
 		struct {
-			byte_t framebuffer_red_field_position, framebuffer_red_mask_size;
-			byte_t framebuffer_green_field_position, framebuffer_green_mask_size;
-			byte_t framebuffer_blue_field_position, framebuffer_blue_mask_size;
+			u8 framebuffer_red_field_position, framebuffer_red_mask_size;
+			u8 framebuffer_green_field_position, framebuffer_green_mask_size;
+			u8 framebuffer_blue_field_position, framebuffer_blue_mask_size;
 		};
 	};
 };
-void* gfxcontrol();
-byte_t gfxsetup(const word_t mode);
-gfx_mode gfxsetup(const byte_t mode_type, 
-				  const dword_t width,
-				  const dword_t height,
-				  const dword_t depth);
+void* VBEcontroller();
+u16 VBEmode_current();
+u8 VBEmode_setup(const u16 mode);
+video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 height, const u32 depth);
