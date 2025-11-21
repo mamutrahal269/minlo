@@ -28,7 +28,7 @@ enum eflags : u32 {
 	DF = 0x0400,  
 	OF = 0x0800
 };
-struct regs386 {
+struct [[gnu::packed]] regs386 {
 	union {
 		u32 eax; u16 ax;
 		struct { u8 al, ah; };
@@ -51,7 +51,7 @@ struct regs386 {
 	u32 eflags;
 	u16 ds, es, fs, gs;
 };
-void int386(const u8 intr, const regs386& iregs, regs386& oregs);
+extern "C" void __attribute__((regparm(3))) int386(const u8 intr, const regs386& iregs, regs386& oregs);
 void* memcpy(void* dest, const void* src, size_t n);
 void* memcpy(void* dst,  u32 srcptr, size_t n);
 u8 memcmp(const void* ptr1, const void* ptr2, size_t n);

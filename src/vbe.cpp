@@ -8,7 +8,6 @@
 #define VBE_MODE_VGA_INCOMPATIBLE_WINDOWED_MEMORY (1 << 6)
 #define VBE_MODE_LFB (1 << 7)
 #define VBE_SUCCESS 0x004F
-
 namespace {
 	struct [[gnu::packed]] {
 		u8  VbeSignature[4];
@@ -73,7 +72,7 @@ namespace {
 	    u8  Reserved4[189];
 	} ModeInfoBlock;
 }
-void* VBEcontroller() {
+const void* VBEcontroller() {
 	static u8 initf = 0;
 	if(initf) return &VbeInfoBlock;
 	memcpy(VbeInfoBlock.VbeSignature, "VBE2" /* input signature */ , 4);
@@ -137,10 +136,10 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 		}
 		else {
 			constexpr u16 mask = VBE_MODE_COLOR | VBE_MODE_GRAPHICS | VBE_MODE_LFB;
-			if(ModeInfoBlock.ModeAttributes & VBE_MODE_SUPPORTED) continue;
 			if((ModeInfoBlock.ModeAttributes & mask) != mask) continue;
 			if(ModeInfoBlock.MemoryModel > 7) continue;
 		}
+		/* Manhattan distance */
 		u32 cur_diff =
 			(width  == 0 ? 0 :
 				(width  > ModeInfoBlock.XResolution ?
@@ -164,7 +163,7 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 	iregs.cx = best_mode;
 	int386(0x10, iregs, oregs);
 	if(oregs.ax != VBE_SUCCESS) return {};
-	if(best_mode == ~0 || VBEmode_setup(mode == mode_type::text ? best_mode : (best_mode | (1 << 14 /* use LFB flags */ )))) return {};
+	if(best_mode == ~0 || VBEmode_setup(mode == mode_type::text ? best_mode : (best_mode | (1 << 14 /* use LFB flag */ )))) return {};
 	
 	video_mode vmode{};
 	vmode.vbe_mode_info = &ModeInfoBlock;
@@ -197,7 +196,7 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 		else {
 			vmode.framebuffer_type = 0;
 			constexpr auto colors = 64u * 4u;
-			static u8 palette[colors];
+			static u8 palette[colors * 4];
 			iregs.ax = 0x4F09;
 			iregs.cx = colors;
 			iregs.bl = 1;
@@ -205,6 +204,7 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 			iregs.di = reinterpret_cast<u32>(palette);
 			int386(0x10, iregs, oregs);
 			if(oregs.ax == VBE_SUCCESS) {
+				/* convert BGRA(VBE standard) to RGB(Multiboot standard) */
 				for (size_t i = 0; i < colors; ++i) {
 					u16 src = i * 4;
 					u16 dst = i * 3;
