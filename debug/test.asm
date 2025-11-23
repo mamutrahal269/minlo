@@ -1,5 +1,5 @@
 bits 32
-org 0x100000
+org 0x7E00
 
 mov esi, msg
 mov edi, 0xB8000
