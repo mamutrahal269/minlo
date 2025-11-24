@@ -3,9 +3,10 @@ SECTIONS
 {
 	. = 0x7E00;
 	.text : {
-		int386.o(.text*)
-		test.o(.text*)
-		*(.text*)
+		int386.o(.text)
+		initcom.o(.text)
+		*(.main)
+		*(.text)
 	}
 	.data : {
 		*(.bss)

@@ -12,7 +12,7 @@
 %define GS_OFF 38
 bits 32
 global int386
-section .text.int386
+section .text
 jmp skip
 ; eax - irq number
 ; edx - input buffer
@@ -71,6 +71,7 @@ bits 16
 	pop ecx
 	pop ebx
 	pop eax
+	jmp .intc
 	
 .intc:
 	int 0x00

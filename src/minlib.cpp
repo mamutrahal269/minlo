@@ -57,3 +57,4 @@ u8 inb(u16 port) {
 	);
 	return ret;
 }
+
