@@ -14,7 +14,8 @@ using va_list = __builtin_va_list;
 #define va_arg(ap, type)     __builtin_va_arg(ap, type)
 #define va_end(ap)           __builtin_va_end(ap)
 #define va_copy(d, s)		 __builtin_va_copy(d, s)
-
+#define SEG(x) (static_cast<u16>(reinterpret_cast<u32>(x) >> 4))
+#define OFF(x) (static_cast<u16>(reinterpret_cast<u32>(x) & 0xF))
 enum outt : i8 {
 	none = 0, tty, com
 };
@@ -54,9 +55,7 @@ struct [[gnu::packed]] regs386 {
 };
 extern "C" void __attribute__((regparm(3))) int386(const u8 intr, const regs386& iregs, regs386& oregs);
 void* memcpy(void* dest, const void* src, size_t n);
-void* memcpy(void* dst,  u32 srcptr, size_t n);
 u8 memcmp(const void* ptr1, const void* ptr2, size_t n);
-u16 esseg();
 int printf(const outt o, const char* fmt, ...);
 void outb(u16 port, u8 val);
 u8 inb(u16 port);

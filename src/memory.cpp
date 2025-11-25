@@ -28,8 +28,8 @@ u8 e820call(e820_ent& ent, u32& n) {
     regs.eax = 0xE820;
     regs.edx = 0x534D4150;
     regs.ecx = 24;
-    regs.es = esseg();
-    regs.di = reinterpret_cast<u32>(&ent);
+    regs.es = SEG(&ent);
+    regs.di = OFF(&ent);
     int386(0x15, regs, regs);
     if (regs.eax != 0x534D4150 || regs.eflags & eflags::CF) 
         return 2;

@@ -11,11 +11,11 @@
 namespace {
 	struct [[gnu::packed]] {
 		u8  VbeSignature[4];
-		u16  VbeVersion;
+		u16 VbeVersion;
 		u32 OemStringPtr;
-		u32  Capabilities;
+		u32 Capabilities;
 		u32 VideoModePtr;
-		u16  TotalMemory;
+		u16 TotalMemory;
 		u16  OemSoftwareRev;
 		u32 OemVendorNamePtr;
 		u32 OemProductNamePtr;
@@ -25,17 +25,17 @@ namespace {
 	} VbeInfoBlock;
 
 	struct [[gnu::packed]] {
-	    u16  ModeAttributes;
+	    u16 ModeAttributes;
 	    u8  WinAAttributes;
     	u8  WinBAttributes;
-    	u16  WinGranularity;
-    	u16  WinSize;
-    	u16  WinASegment;
-    	u16  WinBSegment;
+    	u16 WinGranularity;
+    	u16 WinSize;
+    	u16 WinASegment;
+    	u16 WinBSegment;
     	u32 WinFuncPtr;
-    	u16  BytesPerScanLine;
-	    u16  XResolution;
-    	u16  YResolution;
+    	u16 BytesPerScanLine;
+	    u16 XResolution;
+    	u16 YResolution;
     	u8  XCharSize;
     	u8  YCharSize;
     	u8  NumberOfPlanes;
@@ -56,8 +56,8 @@ namespace {
 	    u8  DirectColorModeInfo;
 	    u32 PhysBasePtr;
 	    u32 Reserved2;
-	    u16  Reserved3;
-	    u16  LinBytesPerScanLine;
+	    u16 Reserved3;
+	    u16 LinBytesPerScanLine;
 	    u8  BnkNumberOfImagePages;
 	    u8  LinNumberOfImagePages;
 	    u8  LinRedMaskSize;
@@ -77,8 +77,8 @@ const void* VBEcontroller() {
 	if(initf) return &VbeInfoBlock;
 	memcpy(VbeInfoBlock.VbeSignature, "VBE2" /* input signature */ , 4);
 	regs386 regs;
-	regs.es = esseg();
-	regs.di = reinterpret_cast<u32>(&VbeInfoBlock);
+	regs.es = SEG(&VbeInfoBlock);
+	regs.di = OFF(&VbeInfoBlock);
 	regs.ax = 0x4F00; /* Function 00h - Return VBE Controller Information */
 	int386(0x10, regs, regs);
 	if(regs.ax != VBE_SUCCESS || memcmp(VbeInfoBlock.VbeSignature, "VESA" /* output signature */ , 4)) return nullptr;
@@ -97,8 +97,8 @@ u16 VBEstate(const u8 op, u8* state_buff, const size_t bufsiz) {
 						 D1=	Save/Restore BIOS data state,
 						 D2=	Save/Restore DAC state,
 						 D3=	Save/Restore Register state */
-	regs.es = esseg();
-	regs.bx = reinterpret_cast<u32>(state_buff);
+	regs.es = SEG(state_buff);
+	regs.bx = OFF(state_buff);
 	int386(0x10, regs, regs);
 	if(regs.ax != VBE_SUCCESS) return 1;
 	return 0;
@@ -113,19 +113,18 @@ u8 VBEmode_setup(const u16 mode) {
 }
 video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 height, const u32 depth) {
 	if(!VBEcontroller()) return {};
-	if(VbeInfoBlock.VbeVersion < 0x0300) return {};
+	if(VbeInfoBlock.VbeVersion < 0x0200) return {};
 	
 	regs386 iregs{}, oregs{};
-	iregs.es = esseg();
-	u32 mode_phys = (VbeInfoBlock.VideoModePtr >> 16) * 16 + (VbeInfoBlock.VideoModePtr & 0xFFFF);
-	memcpy(&iregs.cx, mode_phys, sizeof(iregs.cx));
+	const u16* modes = reinterpret_cast<u16*>((u32)(VbeInfoBlock.VideoModePtr >> 16) * 16 + (VbeInfoBlock.VideoModePtr & 0xFFFF));
 	u16 best_mode = ~0;
 	u32 best_diff = ~0;
 	
 	iregs.ax = 0x4F01;
-	iregs.di = reinterpret_cast<u32>(&ModeInfoBlock);
-	for(; iregs.cx != 0xFFFF && best_diff; mode_phys += 2) {
-		memcpy(&iregs.cx, mode_phys, sizeof(iregs.cx));
+	iregs.es = SEG(&ModeInfoBlock);
+	iregs.di = OFF(&ModeInfoBlock);
+	for(u32 mode_n = 0; modes[mode_n] != 0xFFFF && best_diff; ++mode_n) {
+		iregs.cx = modes[mode_n];
 		int386(0x10, iregs, oregs);
 		if(oregs.ax != VBE_SUCCESS) continue;
 		if(!(ModeInfoBlock.ModeAttributes & VBE_MODE_SUPPORTED)) continue;
@@ -178,7 +177,7 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 	}
 	else vmode.vbe_interface_seg = vmode.vbe_interface_off = vmode.vbe_interface_len = 0;
 	vmode.framebuffer_addr = mode == mode_type::text ? (ModeInfoBlock.WinASegment * 16) : ModeInfoBlock.PhysBasePtr;
-	vmode.framebuffer_pitch = mode == mode_type::text ? ModeInfoBlock.BytesPerScanLine : ModeInfoBlock.LinBytesPerScanLine;
+	vmode.framebuffer_pitch = ModeInfoBlock.BytesPerScanLine;
 	vmode.framebuffer_width = ModeInfoBlock.XResolution;
 	vmode.framebuffer_height = ModeInfoBlock.YResolution;
 	vmode.framebuffer_bpp = mode == mode_type::text ? 16 : ModeInfoBlock.BitsPerPixel;
@@ -186,12 +185,12 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 	else if(mode == mode_type::graphics) {
 		if (ModeInfoBlock.MemoryModel == 0x6 || ModeInfoBlock.MemoryModel == 0x7) {
 			vmode.framebuffer_type = 1;
-			vmode.framebuffer_red_field_position = ModeInfoBlock.RedFieldPosition;
-			vmode.framebuffer_red_mask_size = ModeInfoBlock.RedMaskSize;
-			vmode.framebuffer_green_field_position = ModeInfoBlock.GreenFieldPosition;
-			vmode.framebuffer_green_mask_size = ModeInfoBlock.GreenMaskSize;
-			vmode.framebuffer_blue_field_position = ModeInfoBlock.BlueFieldPosition;
-			vmode.framebuffer_blue_mask_size = ModeInfoBlock.BlueMaskSize;
+			vmode.framebuffer_red_field_position =   VbeInfoBlock.VbeVersion >= 0x0300 ? ModeInfoBlock.LinRedFieldPosition : ModeInfoBlock.RedFieldPosition;
+			vmode.framebuffer_red_mask_size =        VbeInfoBlock.VbeVersion >= 0x0300 ? ModeInfoBlock.LinRedMaskSize : ModeInfoBlock.RedMaskSize;
+			vmode.framebuffer_green_field_position = VbeInfoBlock.VbeVersion >= 0x0300 ? ModeInfoBlock.LinGreenFieldPosition : ModeInfoBlock.GreenFieldPosition;
+			vmode.framebuffer_green_mask_size =      VbeInfoBlock.VbeVersion >= 0x0300 ? ModeInfoBlock.LinGreenMaskSize : ModeInfoBlock.GreenMaskSize;
+			vmode.framebuffer_blue_field_position =  VbeInfoBlock.VbeVersion >= 0x0300 ? ModeInfoBlock.LinBlueFieldPosition : ModeInfoBlock.BlueFieldPosition;
+			vmode.framebuffer_blue_mask_size =       VbeInfoBlock.VbeVersion >= 0x0300 ? ModeInfoBlock.LinBlueMaskSize : ModeInfoBlock.BlueMaskSize;
 		}
 		else {
 			vmode.framebuffer_type = 0;

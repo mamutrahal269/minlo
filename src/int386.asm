@@ -93,7 +93,7 @@ bits 16
     in al, 0x70
     or al, 0x80
     out 0x70, al
-    lgdt [gdt_descriptor]
+    lgdt [cs:gdt_descriptor]
     mov eax, cr0
     or eax, 1
     mov cr0, eax

@@ -21,8 +21,8 @@ u8 readdisk(u32 lba, u32 sectors, const chs& max, const u8 drive_n, void* buffer
 
 		regs.ah = 2;
 		regs.al = sectors < 127 ? sectors : 127;
-		regs.es = esseg();
-		regs.bx = bufptr;
+		regs.es = SEG(bufptr);
+		regs.bx = OFF(bufptr);
 		regs.ch = cyl;
 		regs.cl = ((lba % max.sector) + 1) | ((cyl >> 2) & 0xC0);
 		regs.dh = (lba / max.sector) % max.head;
