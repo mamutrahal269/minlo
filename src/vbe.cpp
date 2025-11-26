@@ -131,7 +131,6 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 		if(mode == mode_type::text) {
 			if(ModeInfoBlock.MemoryModel != 0) continue;
 			if(ModeInfoBlock.ModeAttributes & (VBE_MODE_VGA_INCOMPATIBLE | VBE_MODE_GRAPHICS | VBE_MODE_VGA_INCOMPATIBLE_WINDOWED_MEMORY)) continue;
-			
 		}
 		else {
 			constexpr u16 mask = VBE_MODE_COLOR | VBE_MODE_GRAPHICS | VBE_MODE_LFB;
@@ -153,7 +152,6 @@ video_mode VBEmode_setup(const mode_type mode, const u32 width,  const u32 heigh
 					(depth > ModeInfoBlock.BitsPerPixel ?
 						(depth - ModeInfoBlock.BitsPerPixel) :
 						(ModeInfoBlock.BitsPerPixel - depth))));
-
 		if( cur_diff < best_diff) {
 			best_diff = cur_diff;
 			best_mode = iregs.cx;

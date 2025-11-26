@@ -2,14 +2,14 @@
 set -e
 
 CC=i386-elf-gcc
-CC_FLAGS="-Ofast -flto -ffunction-sections -fdata-sections -nostdlib -nostdinc++ -nostdinc -ffreestanding -m32 \
+CC_FLAGS="-Ofast -c -flto -ffunction-sections -fdata-sections -nostdlib -nostdinc++ -nostdinc -ffreestanding -m32 \
 -fno-pic -fno-pie -fno-rtti -fno-exceptions -fno-threadsafe-statics -masm=intel -I../include"
 
-$CC $CC_FLAGS -c minlib.cpp
-$CC $CC_FLAGS -c printf.cpp
-$CC $CC_FLAGS -c internal/arith64.c
-$CC $CC_FLAGS -c test.cpp
-$CC $CC_FLAGS -c vbe.cpp
+$CC $CC_FLAGS minlib.cpp
+$CC $CC_FLAGS printf.cpp
+$CC $CC_FLAGS internal/arith64.c
+$CC $CC_FLAGS test.cpp
+$CC $CC_FLAGS vbe.cpp
 
 nasm -f elf int386.asm -o int386.o
 nasm -f elf -DDEBUG internal/initcom.asm -o initcom.o
