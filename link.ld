@@ -6,12 +6,12 @@ SECTIONS
 		int386.o(.text)
 		initcom.o(.text)
 		*(.main)
-		*(.text)
+		*(.text*)
 	}
 	.data : {
-		*(.bss)
-		*(.data)
-		*(.rodata)
+		*(.bss*)
+		*(.data*)
+		*(.rodata*)
 	}
 }
 	
