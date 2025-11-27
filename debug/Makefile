@@ -1,15 +1,66 @@
-TARGETS = mbr.bin stage2.bin test.bin
-.PHONY: all clean
-all: $(TARGETS) minlo.bin c.img
-mbr.bin: ../src/mbr.asm
-	nasm -f bin -I.. $< -o $@
-stage2.bin: ../src/stage2.asm ../config.inc
-	nasm -f bin -I.. -DDEBUG $< -o $@
-test.bin: test.asm
-	nasm -f bin -I.. $< -o $@
-minlo.bin: $(TARGETS)
-	cat $(TARGETS) > $@
-c.img: minlo.bin
-	dd if=$< of=$@ seek=0 bs=1 conv=notrunc
+CC := i386-elf-gcc
+ASM := nasm
+
+SRC_DIR := ../src
+INC_DIR := ../include
+
+CFLAGS := -Ofast -flto -ffunction-sections -fdata-sections -nostdlib -nostdinc++ -nostdinc \
+          -ffreestanding -m32 -fno-pic -fno-pie -fno-rtti -fno-exceptions -fno-threadsafe-statics \
+          -masm=intel -I$(INC_DIR) -MMD -MP -c
+
+CLFLAGS := -m32 -nostdlib -nostdinc -ffreestanding -T ../link.ld -flto -Wl,--gc-sections
+
+ASMFLAGS_ELF := -f elf
+ASMFLAGS_BIN := -f bin
+
+OBJS := \
+    minlib.o \
+    printf.o \
+    test.o \
+    vbe.o \
+    int386.o \
+    arith64.o \
+    initcom.o
+
+.PHONY: all clean write run
+
+all: minlo.bin
+
+# ---- C/C++ ----
+%.o : $(SRC_DIR)/%.cpp
+	$(CC) $(CFLAGS) $< -o $@
+
+%.o : $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) $< -o $@
+
+# ---- ASM ----
+int386.o: $(SRC_DIR)/int386.asm
+	$(ASM) $(ASMFLAGS_ELF) $< -o $@
+
+arith64.o: $(SRC_DIR)/internal/arith64.c
+	$(CC) $(CFLAGS) $< -o $@
+
+initcom.o: $(SRC_DIR)/internal/initcom.asm
+	$(ASM) $(ASMFLAGS_ELF) -DDEBUG $< -o $@
+
+# ---- Bootloader ----
+0.bin: $(SRC_DIR)/0.asm
+	$(ASM) $(ASMFLAGS_BIN) -DLOAD_SECTORS=120 $< -o $@
+
+boot.bin: $(OBJS)
+	$(CC) $(CLFLAGS) $^ -o $@
+
+minlo.bin: 0.bin boot.bin
+	cat 0.bin boot.bin > $@
+
 clean:
-	rm -f $(TARGETS) minlo.bin
+	find . -type f \( -name "*.o" -o -name "*.bin" -o -name "*.d" \) -exec rm -f {} +
+
+write: minlo.bin ../debug/c.img
+	dd if=/dev/zero of=../debug/c.img bs=1 count=$(shell stat -c%s ../debug/c.img) conv=notrunc
+	dd if=minlo.bin of=../debug/c.img seek=0 bs=1 conv=notrunc
+
+run: ../debug/c.img
+	cd ../debug && bochs -q
+
+-include $(OBJS:.o=.d)
