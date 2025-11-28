@@ -38,6 +38,7 @@ minlo.bin: 0.bin boot.bin
 
 clean:
 	find . -type f \( -name "*.o" -o -name "*.bin" -o -name "*.d" \) -exec rm -f {} +
+	rm -f symbols.txt
 
 write: minlo.bin ../debug/c.img
 	dd if=/dev/zero of=c.img bs=1 count=$(shell stat -c%s c.img) conv=notrunc
