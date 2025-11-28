@@ -4,7 +4,7 @@ ASM := nasm
 SRC_DIR := ../src
 INC_DIR := ../include
 
-CFLAGS := -Ofast -flto -ffunction-sections -fdata-sections -nostdlib -nostdinc++ -nostdinc \
+CFLAGS := -Ofast -march=i386 -mtune=i386 -flto -ffunction-sections -fdata-sections -nostdlib -nostdinc++ -nostdinc \
           -ffreestanding -m32 -fno-pic -fno-pie -fno-rtti -fno-exceptions -fno-threadsafe-statics \
           -masm=intel -I$(INC_DIR) -MMD -MP -c
 
@@ -38,10 +38,10 @@ minlo.bin: 0.bin boot.bin
 
 clean:
 	find . -type f \( -name "*.o" -o -name "*.bin" -o -name "*.d" \) -exec rm -f {} +
-	rm -f symbols.txt
 
-write: minlo.bin ../debug/c.img
-	dd if=/dev/zero of=c.img bs=1 count=$(shell stat -c%s c.img) conv=notrunc
+c.img:
+	bximage -func=create -hd=16M -imgmode=flat -sectsize=512 -q c.img
+write: minlo.bin c.img
 	dd if=minlo.bin of=c.img seek=0 bs=1 conv=notrunc
 
 run: c.img

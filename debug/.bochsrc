@@ -1,13 +1,13 @@
 romimage: file=/usr/local/share/bochs/BIOS-bochs-latest, address=0xfffe0000
 vgaromimage: file=/usr/local/share/bochs/VGABIOS-lgpl-latest
+ata0-master: type=disk, path="c.img", mode=flat
 boot: disk
 cpu: model=atom_n270
-
-ata0-master: type=disk, path="c.img", translation=lba, mode=flat
-display_library: x, options=gui_debug
 vga: extension=vbe
-memory: guest=512, host=1024
 mouse: enabled=0
+
+display_library: x, options=gui_debug
+memory: guest=512, host=1024
 log: /dev/null
 debug: action=ignore
 info: action=ignore
