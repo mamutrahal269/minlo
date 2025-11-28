@@ -13,7 +13,7 @@ CLFLAGS := -m32 -nostdlib -nostdinc -ffreestanding -T ../link.ld -flto -Wl,--gc-
 ASMFLAGS_ELF := -f elf
 ASMFLAGS_BIN := -f bin
 
-OBJS := minlib.o printf.o test.o vbe.o int386.o arith64.o
+OBJS := arith64.o disk.o int386.o memory.o minlib.o printf.o vbe.o test.o
 
 .PHONY: all clean write run
 
@@ -24,15 +24,12 @@ all: minlo.bin
 %.o : $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $< -o $@
 
+test.o: test.cpp
+	$(CC) $(CFLAGS) $< -o $@
 int386.o: $(SRC_DIR)/int386.asm
 	$(ASM) $(ASMFLAGS_ELF) $< -o $@
-
-arith64.o: $(SRC_DIR)/arith64.c
-	$(CC) $(CFLAGS) $< -o $@
-
 0.bin: $(SRC_DIR)/0.asm
 	$(ASM) $(ASMFLAGS_BIN) -DLOAD_SECTORS=120 $< -o $@
-
 boot.bin: $(OBJS)
 	$(CC) $(CLFLAGS) $^ -o $@
 
