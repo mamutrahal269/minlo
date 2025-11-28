@@ -14,4 +14,4 @@ info: action=ignore
 error: action=report
 panic: action=ask
 magic_break: enabled=1
-
+port_e9_hack: enabled=1

@@ -17,7 +17,7 @@ using va_list = __builtin_va_list;
 #define SEG(x) (static_cast<u16>(reinterpret_cast<u32>(x) >> 4))
 #define OFF(x) (static_cast<u16>(reinterpret_cast<u32>(x) & 0xF))
 enum outt : i8 {
-	none = 0, tty, com
+	none = 0, tty, e9
 };
 enum eflags : u32 {
 	CF = 0x0001,  

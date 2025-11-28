@@ -52,11 +52,8 @@ namespace {
 				}
 				return;
 			}
-			case outt::com: {
-				for(size_t i = 0; s[i] && i < l; ++i) {
-					while(!(inb(0x3F8 + 5) & 0x20));
-					outb(0x3F8, s[i]);
-				}
+			case outt::e9: {
+				for(size_t i = 0; s[i] && i < l; ++i) outb(0xE9, s[i]);
 			}
 		}
 		return;

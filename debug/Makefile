@@ -13,37 +13,23 @@ CLFLAGS := -m32 -nostdlib -nostdinc -ffreestanding -T ../link.ld -flto -Wl,--gc-
 ASMFLAGS_ELF := -f elf
 ASMFLAGS_BIN := -f bin
 
-OBJS := \
-    minlib.o \
-    printf.o \
-    test.o \
-    vbe.o \
-    int386.o \
-    arith64.o \
-    initcom.o
+OBJS := minlib.o printf.o test.o vbe.o int386.o arith64.o
 
 .PHONY: all clean write run
 
 all: minlo.bin
 
-# ---- C/C++ ----
 %.o : $(SRC_DIR)/%.cpp
 	$(CC) $(CFLAGS) $< -o $@
-
 %.o : $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $< -o $@
 
-# ---- ASM ----
 int386.o: $(SRC_DIR)/int386.asm
 	$(ASM) $(ASMFLAGS_ELF) $< -o $@
 
-arith64.o: $(SRC_DIR)/internal/arith64.c
+arith64.o: $(SRC_DIR)/arith64.c
 	$(CC) $(CFLAGS) $< -o $@
 
-initcom.o: $(SRC_DIR)/internal/initcom.asm
-	$(ASM) $(ASMFLAGS_ELF) -DDEBUG $< -o $@
-
-# ---- Bootloader ----
 0.bin: $(SRC_DIR)/0.asm
 	$(ASM) $(ASMFLAGS_BIN) -DLOAD_SECTORS=120 $< -o $@
 
@@ -57,10 +43,10 @@ clean:
 	find . -type f \( -name "*.o" -o -name "*.bin" -o -name "*.d" \) -exec rm -f {} +
 
 write: minlo.bin ../debug/c.img
-	dd if=/dev/zero of=../debug/c.img bs=1 count=$(shell stat -c%s ../debug/c.img) conv=notrunc
-	dd if=minlo.bin of=../debug/c.img seek=0 bs=1 conv=notrunc
+	dd if=/dev/zero of=c.img bs=1 count=$(shell stat -c%s c.img) conv=notrunc
+	dd if=minlo.bin of=c.img seek=0 bs=1 conv=notrunc
 
-run: ../debug/c.img
-	cd ../debug && bochs -q
+run: c.img
+	bochs -q
 
 -include $(OBJS:.o=.d)
